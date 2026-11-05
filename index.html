@@ -1,0 +1,247 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Розвилка — галерея інтерактивного кіно</title>
+<link rel="icon" href="favicon.ico">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+:root{
+  --bg:#11131b; --panel:#191c27; --card:#161924; --line:#2b3043; --fg:#ebe7de; --muted:#979cad;
+  --accent:#f0a63a; --accent-ink:#1b1306; --bad:#e2685b;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  color-scheme:dark;
+}
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-inline:max(16px,env(safe-area-inset-left,0px)) max(16px,env(safe-area-inset-right,0px));padding-block:0 48px}
+[hidden]{display:none!important}
+a{color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 28px;max-width:1280px;margin:0 auto;padding:16px 0;border-bottom:1px solid var(--line)}
+.brand{font-family:var(--f-display);font-weight:700;font-size:21px;text-decoration:none}
+.brand span{color:var(--accent)}
+nav{display:flex;flex-wrap:wrap;gap:4px}
+nav a{padding:6px 12px;border-radius:6px;text-decoration:none;color:var(--muted);font-weight:500;font-size:14px}
+nav a:hover{color:var(--fg);background:var(--panel)}
+nav a[aria-current="page"]{color:var(--accent-ink);background:var(--accent)}
+
+main{max-width:1280px;margin:0 auto}
+.hero{padding:36px 0 22px;display:flex;flex-wrap:wrap;gap:16px 32px;align-items:flex-end;justify-content:space-between}
+h1{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(24px,4.4vw,42px);line-height:1.1;text-wrap:balance}
+.lead{margin:10px 0 0;color:var(--muted);max-width:56ch}
+.find{background:var(--panel);border:1px solid var(--line);border-radius:6px;padding:8px 12px;color:var(--fg);font:inherit;width:min(100%,280px)}
+
+.grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:20px}
+.card{display:flex;flex-direction:column;background:var(--card);border:1px solid var(--line);border-radius:10px;overflow:hidden;text-decoration:none;transition:border-color .15s,transform .15s}
+a.card:hover{border-color:var(--accent);transform:translateY(-2px)}
+.pic{position:relative;aspect-ratio:16/9;background:linear-gradient(135deg,#2d3a5c,#3a2f4f);overflow:hidden}
+.pic img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;opacity:0;transition:opacity .3s}
+.pic img.on{opacity:1}
+.pic .play{position:absolute;right:12px;bottom:12px;width:40px;height:40px;border-radius:50%;background:var(--accent);color:var(--accent-ink);display:grid;place-items:center;font-size:15px;opacity:0;transform:scale(.85);transition:.15s}
+a.card:hover .play,a.card:focus-visible .play{opacity:1;transform:none}
+.body{padding:14px 16px 16px;display:flex;flex-direction:column;gap:6px;flex:1}
+.body h2{margin:0;font-family:var(--f-display);font-weight:500;font-size:16px;line-height:1.3;text-wrap:balance}
+.by{font-family:var(--f-mono);font-size:12px;color:var(--accent)}
+.desc{margin:0;color:var(--muted);font-size:14px;display:-webkit-box;-webkit-line-clamp:3;-webkit-box-orient:vertical;overflow:hidden}
+.meta{margin-top:auto;padding-top:8px;display:flex;flex-wrap:wrap;gap:4px 12px;font-family:var(--f-mono);font-size:12px;color:var(--muted)}
+.card.sk .body h2,.card.sk .by{opacity:.55}
+.card.bad{opacity:.7}
+.card.bad .by{color:var(--bad)}
+.state{padding:56px 0;text-align:center;color:var(--muted)}
+.state b{display:block;color:var(--fg);font-family:var(--f-display);font-weight:500;font-size:18px;margin-bottom:8px}
+code{font-family:var(--f-mono);font-size:.9em;background:var(--panel);padding:1px 6px;border-radius:4px}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html">Розвил<span>ка</span></a>
+  <nav aria-label="Меню">
+    <a href="index.html" aria-current="page">Галерея</a>
+    <a href="editor.html">Редактор</a>
+  </nav>
+</header>
+
+<main>
+  <section class="hero">
+    <div>
+      <h1>Інтерактивне кіно</h1>
+      <p class="lead">Найкращі роботи студентів. Оберіть історію, щоб пройти її в браузері.</p>
+    </div>
+    <input class="find" id="find" type="search" placeholder="Пошук за назвою чи автором" aria-label="Пошук" hidden>
+  </section>
+  <div class="grid" id="grid" aria-live="polite"></div>
+  <div class="state" id="state">Завантажую список робіт…</div>
+</main>
+
+<script>
+/* Робота = ZIP із редактора («Вивантажити ZIP»). Викладач кладе такі файли в папку levels/ репозиторію.
+   Список береться автоматично: з GitHub API (на github.io), інакше з levels/index.json або зі списку файлів папки.
+   Якщо сайт на власному домені, впишіть сюди "логін/репозиторій": */
+const REPO = '';
+
+const $ = s => document.querySelector(s);
+const esc = s => String(s ?? '').replace(/[&<>"']/g, c => ({ '&':'&amp;', '<':'&lt;', '>':'&gt;', '"':'&quot;', "'":'&#39;' }[c]));
+const natCmp = (a, b) => a.name.localeCompare(b.name, 'uk', { numeric:true, sensitivity:'base' });
+const lvlUrl = n => 'levels/' + n.split('/').map(encodeURIComponent).join('/');
+const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' МБ' : Math.max(1, Math.round(b / 1024)) + ' КБ';
+const plural = (n, a, b, c) => { const m = n % 100, k = n % 10; return n + ' ' + (m > 10 && m < 20 ? c : k === 1 ? a : k >= 2 && k <= 4 ? b : c); };
+
+/* ---------- список файлів ---------- */
+function repoPath(){
+  if (REPO) return REPO;
+  const m = location.hostname.match(/^(.+)\.github\.io$/i); if (!m) return null;
+  const seg = location.pathname.split('/').filter(Boolean)[0];
+  return m[1] + '/' + (seg && !/\.html?$/i.test(seg) ? seg : m[1] + '.github.io');
+}
+async function listLevels(){
+  const repo = repoPath();
+  if (repo) {
+    try {
+      const r = await fetch(`https://api.github.com/repos/${repo}/contents/levels`);
+      if (r.ok) { const a = await r.json(); return a.filter(f => f.type === 'file' && /\.zip$/i.test(f.name)).map(f => ({ name:f.name, size:f.size })); }
+      if (r.status === 404) return [];
+    } catch {}
+  }
+  try {
+    const r = await fetch('levels/index.json', { cache:'no-cache' });
+    if (r.ok) { const j = await r.json(); return (Array.isArray(j) ? j : j.files || []).map(x => typeof x === 'string' ? { name:x } : x).filter(x => x && /\.zip$/i.test(x.name || '')); }
+  } catch {}
+  try {
+    const r = await fetch('levels/');
+    if (r.ok) {
+      const doc = new DOMParser().parseFromString(await r.text(), 'text/html'), out = new Set();
+      for (const el of doc.querySelectorAll('a[href]')) {
+        const h = (el.getAttribute('href') || '').split(/[?#]/)[0]; if (!/\.zip$/i.test(h)) continue;
+        let n = h.split(/[\\/]/).pop(); try { n = decodeURIComponent(n); } catch {}
+        out.add(n);
+      }
+      return [...out].map(name => ({ name }));
+    }
+  } catch {}
+  return null;
+}
+
+/* ---------- читання ZIP через Range-запити: качаємо лише project.json і обкладинку ---------- */
+async function openSrc(url){
+  const r = await fetch(url, { headers:{ Range:'bytes=-65557' } });
+  if (r.status === 206) {
+    const total = +(r.headers.get('Content-Range') || '').split('/')[1], tail = await r.arrayBuffer(), base = total - tail.byteLength;
+    return { total, tail, async get(a, b){
+      if (a >= base) return tail.slice(a - base, b - base);
+      const rr = await fetch(url, { headers:{ Range:`bytes=${a}-${b - 1}` } });
+      if (rr.status !== 206) throw new Error('Сервер не підтримує часткові запити');
+      return rr.arrayBuffer();
+    } };
+  }
+  let rr = r;
+  if (r.status === 416) rr = await fetch(url);
+  if (!rr.ok) { const e = new Error(rr.status === 404 ? 'файл не знайдено' : 'помилка ' + rr.status); e.status = rr.status; throw e; }
+  const buf = await rr.arrayBuffer();
+  return { total:buf.byteLength, tail:buf, get: async (a, b) => buf.slice(a, b) };
+}
+const dec = (b, flags) => { if (flags & 0x800) return new TextDecoder().decode(b); try { return new TextDecoder('utf-8', { fatal:true }).decode(b); } catch { return new TextDecoder('ibm866').decode(b); } };
+async function zipEntries(src){
+  const dv = new DataView(src.tail); let e = -1;
+  for (let i = dv.byteLength - 22; i >= 0; i--) if (dv.getUint32(i, true) === 0x06054b50) { e = i; break; }
+  if (e < 0) throw new Error('це не ZIP');
+  const total = dv.getUint16(e + 10, true), cdSize = dv.getUint32(e + 12, true), cdOff = dv.getUint32(e + 16, true);
+  const cd = new DataView(await src.get(cdOff, cdOff + cdSize)), u8 = new Uint8Array(cd.buffer), out = []; let p = 0;
+  for (let n = 0; n < total && p + 46 <= cd.byteLength; n++) {
+    if (cd.getUint32(p, true) !== 0x02014b50) break;
+    const flags = cd.getUint16(p + 8, true), nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true);
+    out.push({ name: dec(u8.subarray(p + 46, p + 46 + nl), flags), flags, method: cd.getUint16(p + 10, true), csize: cd.getUint32(p + 20, true), lo: cd.getUint32(p + 42, true) });
+    p += 46 + nl + xl + cl;
+  }
+  return out.filter(x => !x.name.endsWith('/') && !/(^|\/)(__MACOSX\/|\.DS_Store$|Thumbs\.db$)/i.test(x.name));
+}
+async function entryBlob(src, en, type){
+  if (en.flags & 1) throw new Error('архів із паролем');
+  const lh = new DataView(await src.get(en.lo, en.lo + 30)), st = en.lo + 30 + lh.getUint16(26, true) + lh.getUint16(28, true);
+  const raw = new Blob([await src.get(st, st + en.csize)]);
+  if (en.method === 0) return raw.slice(0, raw.size, type);
+  if (en.method === 8) { const b = await new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob(); return b.slice(0, b.size, type); }
+  throw new Error('непідтримуване стиснення');
+}
+const IMG = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp', gif:'image/gif', avif:'image/avif' };
+async function readMeta(item){
+  let src, tried = [];
+  for (const n of new Set([item.name, item.name.normalize('NFC'), item.name.normalize('NFD')])) {
+    const u = lvlUrl(n); tried.push(u);
+    try { src = await openSrc(u); break; } catch (e) { if (e.status !== 404) throw e; }
+  }
+  if (!src) throw new Error('файл не знайдено за адресою /' + tried[0]);
+  const list = await zipEntries(src);
+  const isPj = n => /(^|\/)project\.json$/i.test(n);
+  const js = list.filter(e => /\.json$/i.test(e.name)).sort((a, b) => (isPj(b.name) - isPj(a.name)) || (a.name.split('/').length - b.name.split('/').length));
+  if (!js.length) throw new Error('немає project.json');
+  const jn = js[0], prefix = jn.name.includes('/') ? jn.name.slice(0, jn.name.lastIndexOf('/') + 1) : '';
+  const pj = JSON.parse(await (await entryBlob(src, jn, 'application/json')).text());
+  if (!pj || !pj.scenes) throw new Error('у project.json немає сцен');
+  const scenes = Object.values(pj.scenes), endings = scenes.filter(s => !s.end || s.end.type === 'ending').length;
+  const names = [pj.cover, pj.scenes[pj.start] && pj.scenes[pj.start].image, ...scenes.map(s => s.image)].filter(n => typeof n === 'string' && n);
+  let cover = null;
+  for (const n of names) {
+    const ext = n.split('.').pop().toLowerCase(); if (!IMG[ext]) continue;
+    const en = list.find(x => x.name === prefix + n) || list.find(x => x.name.split('/').pop().toLowerCase() === n.split('/').pop().toLowerCase());
+    if (en && en.csize < 12e6) { try { cover = URL.createObjectURL(await entryBlob(src, en, IMG[ext])); break; } catch {} }
+  }
+  return { title: pj.title, author: pj.author, description: pj.description, scenes: scenes.length, endings, size: src.total, cover };
+}
+
+/* ---------- картки ---------- */
+const grid = $('#grid'), state = $('#state'), cards = [];
+function fillCard(c, m){
+  c.el.classList.remove('sk');
+  c.el.querySelector('h2').textContent = m.title || c.item.name.replace(/\.zip$/i, '');
+  c.el.querySelector('.by').textContent = m.author || c.item.name.replace(/\.zip$/i, '');
+  const d = c.el.querySelector('.desc'); d.textContent = m.description || ''; d.hidden = !m.description;
+  c.el.querySelector('.meta').innerHTML = `<span>${plural(m.scenes, 'сцена', 'сцени', 'сцен')}</span><span>${plural(m.endings, 'фінал', 'фінали', 'фіналів')}</span><span>${fmtSize(m.size)}</span>`;
+  if (m.cover) { const im = c.el.querySelector('img'); im.onload = () => im.classList.add('on'); im.src = m.cover; }
+  c.text = [m.title, m.author, m.description, c.item.name].join(' ').toLowerCase();
+}
+function failCard(c, e){
+  c.el.classList.remove('sk'); c.el.classList.add('bad'); c.el.removeAttribute('href');
+  c.el.querySelector('.by').textContent = 'Не вдалося прочитати: ' + (e.message || e);
+  c.el.querySelector('.desc').hidden = true; c.el.querySelector('.meta').innerHTML = '';
+}
+let running = 0; const queue = [];
+function pump(){
+  while (running < 3 && queue.length) {
+    const c = queue.shift(); running++;
+    readMeta(c.item).then(m => fillCard(c, m), e => failCard(c, e)).finally(() => { running--; pump(); });
+  }
+}
+const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { io.unobserve(x.target); queue.push(x.target._c); pump(); } }), { rootMargin:'300px' }) : null;
+
+function addCard(item){
+  const el = document.createElement('a'); el.className = 'card sk'; el.href = 'editor.html#level=' + encodeURIComponent(lvlUrl(item.name));
+  el.innerHTML = `<div class="pic"><img alt=""><span class="play" aria-hidden="true">▶</span></div>
+    <div class="body"><h2>${esc(item.name.replace(/\.zip$/i, ''))}</h2><div class="by">Завантажую…</div><p class="desc" hidden></p><div class="meta"></div></div>`;
+  const c = { el, item, text: item.name.toLowerCase() }; el._c = c; cards.push(c); grid.appendChild(el);
+  if (io) io.observe(el); else { queue.push(c); pump(); }
+}
+
+(async () => {
+  const list = await listLevels();
+  if (list === null) { state.innerHTML = '<b>Не вдалося отримати список робіт</b>Перевірте з’єднання або додайте файл <code>levels/index.json</code> зі списком ZIP-файлів.'; return; }
+  if (!list.length) { state.innerHTML = '<b>Поки що тут порожньо</b>Додайте ZIP-файли робіт у папку <code>levels</code> репозиторію.'; return; }
+  state.hidden = true; $('#find').hidden = false;
+  list.sort(natCmp).forEach(addCard);
+})();
+
+$('#find').addEventListener('input', e => {
+  const q = e.target.value.trim().toLowerCase(); let n = 0;
+  for (const c of cards) { const ok = !q || c.text.includes(q); c.el.hidden = !ok; if (ok) n++; }
+  state.hidden = n > 0; if (!n) state.innerHTML = '<b>Нічого не знайдено</b>Спробуйте інший запит.';
+});
+</script>
+<noscript>Для роботи галереї потрібен JavaScript.</noscript>
+</body>
+</html>

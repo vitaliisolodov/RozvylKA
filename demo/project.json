@@ -1,0 +1,294 @@
+{
+  "title": "Останній трамвай",
+  "author": "Демо",
+  "description": "Нічна зупинка, забутий телефон і кілька рішень, від яких залежить, як ти дістанешся додому.",
+  "cover": "kadr01.png",
+  "start": "zupynka",
+  "variables": {
+    "telefon": false,
+    "vidvaha": 0
+  },
+  "scenes": {
+    "zupynka": {
+      "title": "Зупинка, 23:47",
+      "duration": 9,
+      "color": "#2d3a5c",
+      "text": "Порожня зупинка. Табло блимає знаком питання. На лавці хтось забув телефон.",
+      "hotspots": [
+        {
+          "from": 1.5,
+          "to": 8,
+          "x": 0.57,
+          "y": 0.61,
+          "w": 0.1,
+          "h": 0.16,
+          "label": "Телефон на лавці",
+          "set": {
+            "telefon": true
+          }
+        }
+      ],
+      "end": {
+        "type": "choice",
+        "prompt": "Що робиш?",
+        "timeout": 8,
+        "default": 0,
+        "options": [
+          {
+            "label": "Чекати трамвай",
+            "goto": "chekannya"
+          },
+          {
+            "label": "Піти пішки через парк",
+            "goto": "park",
+            "add": {
+              "vidvaha": 1
+            }
+          },
+          {
+            "label": "Подзвонити другу з чужого телефону",
+            "goto": "dzvinok",
+            "if": "telefon"
+          }
+        ]
+      },
+      "pos": {
+        "x": 40,
+        "y": 328
+      },
+      "image": "kadr01.png"
+    },
+    "chekannya": {
+      "title": "Чекання",
+      "duration": 6,
+      "color": "#3a2f4f",
+      "text": "Хвилини тягнуться. Нарешті вдалині дзвенить трамвай, і він не гальмує.",
+      "end": {
+        "type": "goto",
+        "goto": "tramvai"
+      },
+      "pos": {
+        "x": 330,
+        "y": 134
+      },
+      "image": "kadr02.png"
+    },
+    "tramvai": {
+      "title": "Трамвай не зупиняється",
+      "duration": 7,
+      "color": "#5a3b2a",
+      "text": "Двері ще відчинені. Є секунда, щоб заскочити.",
+      "events": [
+        {
+          "at": 2.5,
+          "type": "qte",
+          "prompt": "Заскоч у двері!",
+          "key": "Space",
+          "keyLabel": "ПРОБІЛ",
+          "window": 2.2,
+          "success": "vseredyni",
+          "fail": "proyikhav"
+        }
+      ],
+      "end": {
+        "type": "goto",
+        "goto": "proyikhav"
+      },
+      "pos": {
+        "x": 620,
+        "y": 107
+      },
+      "image": "kadr03.png"
+    },
+    "vseredyni": {
+      "title": "Всередині",
+      "duration": 5,
+      "color": "#2f5a4a",
+      "text": "Ти в тамбурі, задиханий. Кондукторка дивиться з повагою.",
+      "end": {
+        "type": "ending",
+        "title": "Встиг",
+        "text": "Найкоротший шлях додому і трохи адреналіну."
+      },
+      "pos": {
+        "x": 910,
+        "y": 40
+      },
+      "image": "kadr04.png"
+    },
+    "proyikhav": {
+      "title": "Трамвай поїхав",
+      "duration": 6,
+      "color": "#4a2a35",
+      "text": "Червоні вогні зникають за поворотом. Залишається ніч.",
+      "end": {
+        "type": "choice",
+        "prompt": "Як тепер?",
+        "options": [
+          {
+            "label": "Через парк",
+            "goto": "park",
+            "add": {
+              "vidvaha": 1
+            }
+          },
+          {
+            "label": "Викликати таксі",
+            "goto": "taksi"
+          }
+        ]
+      },
+      "pos": {
+        "x": 910,
+        "y": 250
+      },
+      "image": "kadr07.png"
+    },
+    "park": {
+      "title": "Нічний парк",
+      "duration": 10,
+      "color": "#22402e",
+      "text": "Ліхтарі горять через один. Під ногами листя. Раптом щось шарудить у кущах.",
+      "events": [
+        {
+          "at": 4,
+          "type": "choice",
+          "prompt": "Хтось у кущах!",
+          "timeout": 4,
+          "pause": false,
+          "default": 1,
+          "options": [
+            {
+              "label": "Завмерти",
+              "goto": "lysytsia"
+            },
+            {
+              "label": "Бігти",
+              "goto": "bih",
+              "add": {
+                "vidvaha": 1
+              }
+            }
+          ]
+        }
+      ],
+      "end": {
+        "type": "goto",
+        "goto": "bih"
+      },
+      "pos": {
+        "x": 330,
+        "y": 339
+      },
+      "image": "kadr05.png"
+    },
+    "lysytsia": {
+      "title": "Лисиця",
+      "duration": 6,
+      "color": "#5c4a24",
+      "text": "З кущів виходить лисиця, дивиться на тебе і неквапом зникає.",
+      "end": {
+        "type": "ending",
+        "title": "Тиша парку",
+        "text": "Іноді найкраще рішення — просто зупинитися."
+      },
+      "pos": {
+        "x": 620,
+        "y": 366
+      },
+      "image": "kadr06.png"
+    },
+    "bih": {
+      "title": "Біг",
+      "duration": 6,
+      "color": "#24384a",
+      "text": "Ти мчиш алеєю. Попереду величезна калюжа!",
+      "events": [
+        {
+          "at": 1.5,
+          "type": "qte",
+          "prompt": "Розганяйся! Тисни швидко",
+          "key": "Space",
+          "keyLabel": "ПРОБІЛ",
+          "presses": 5,
+          "window": 2.6,
+          "success": "pereskochyv",
+          "fail": "kaliuzha"
+        }
+      ],
+      "end": {
+        "type": "goto",
+        "goto": "kaliuzha"
+      },
+      "pos": {
+        "x": 620,
+        "y": 576
+      },
+      "image": "kadr09.png"
+    },
+    "pereskochyv": {
+      "title": "Перестрибнув",
+      "duration": 5,
+      "color": "#3c5a2a",
+      "text": "Приземлення на сухий асфальт. Вихід з парку вже видно.",
+      "end": {
+        "type": "ending",
+        "title": "Сухі кросівки",
+        "text": "Сміливість і швидкі пальці."
+      },
+      "pos": {
+        "x": 910,
+        "y": 482
+      },
+      "image": "kadr10.png"
+    },
+    "kaliuzha": {
+      "title": "Калюжа",
+      "duration": 5,
+      "color": "#2a3a4a",
+      "text": "Плюх. По щиколотку. Решту шляху кросівки чвакають.",
+      "end": {
+        "type": "ending",
+        "title": "Мокрі ноги",
+        "text": "Додому ти дійшов, але мама питатиме."
+      },
+      "pos": {
+        "x": 910,
+        "y": 692
+      },
+      "image": "kadr11.png"
+    },
+    "dzvinok": {
+      "title": "Дзвінок другу",
+      "duration": 6,
+      "color": "#2a4a5c",
+      "text": "Друг відповідає з першого гудка: стій там, під'їду за десять хвилин.",
+      "end": {
+        "type": "ending",
+        "title": "Друг поруч",
+        "text": "Знахідка на лавці змінила вечір. Не забудь повернути телефон власнику."
+      },
+      "pos": {
+        "x": 330,
+        "y": 598
+      },
+      "image": "kadr08.png"
+    },
+    "taksi": {
+      "title": "Таксі",
+      "duration": 5,
+      "color": "#4a4426",
+      "text": "Машина приїжджає за дві хвилини. Ціна нічного тарифу болить.",
+      "end": {
+        "type": "ending",
+        "title": "Дорогий шлях",
+        "text": "Тепло, сухо і мінус стипендія."
+      },
+      "pos": {
+        "x": 1200,
+        "y": 366
+      },
+      "image": "kadr12.png"
+    }
+  }
+}

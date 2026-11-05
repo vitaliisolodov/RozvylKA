@@ -1,0 +1,2540 @@
+<!doctype html>
+<html lang="uk">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Розвилка</title>
+<link rel="icon" href="favicon.ico">
+<script>window.KIOSK = /[#&?]level=/.test(location.href); if (KIOSK) document.documentElement.classList.add("kiosk");</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@500&family=IBM+Plex+Sans:wght@400;500;600&family=Unbounded:wght@500;700&display=swap">
+<style>
+/* Layout: монтажна — полотно зі схемою сцен зліва, інспектор справа; режим перегляду — екран 16:9 і пульт. На телефоні одна колонка */
+:root{
+  --bg:#11131b; --panel:#191c27; --card:#161924; --line:#2b3043; --line-2:#232737; --fg:#ebe7de; --muted:#979cad;
+  --accent:#f0a63a; --accent-ink:#1b1306; --cool:#79b4d6; --good:#7fc48d; --bad:#e2685b; --link:#8a90a8;
+  --f-display:"Unbounded","Arial Black",system-ui,sans-serif;
+  --f-body:"IBM Plex Sans",system-ui,-apple-system,"Segoe UI",sans-serif;
+  --f-mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
+  color-scheme:dark;
+}
+html,body{background:var(--bg);color:var(--fg)}
+body{font-family:var(--f-body);font-size:15px;line-height:1.5;padding-left:max(16px,env(safe-area-inset-left,0px));padding-right:max(16px,env(safe-area-inset-right,0px));padding-block:14px 32px}
+*{box-sizing:border-box}
+[hidden]{display:none!important}
+button,input,textarea,select{font:inherit;color:inherit}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+
+/* Header */
+.top{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;max-width:1600px;margin:0 auto 14px}
+.brand{font-family:var(--f-display);font-weight:700;font-size:21px;letter-spacing:.01em}
+.brand span{color:var(--accent)}
+a.brand{color:inherit;text-decoration:none}
+a.btn{text-decoration:none;color:inherit}
+/* режим програвача: відкриття роботи з галереї */
+html.kiosk,html.kiosk body{background:#000;overflow:hidden}
+html.kiosk body{padding:0}
+html.kiosk .top,html.kiosk #modeEdit,html.kiosk #modeCourse,html.kiosk #zipBar,html.kiosk .panel,html.kiosk .hud,html.kiosk .prog{display:none!important}
+html.kiosk #modePlay{display:block;max-width:none;margin:0}
+html.kiosk .stage{position:fixed;inset:0;margin:auto;width:min(100vw,calc(100vh * 16 / 9));height:min(100vh,calc(100vw * 9 / 16));max-width:none;border-radius:0}
+.kclose{display:none}
+html.kiosk .kclose{display:grid;position:fixed;top:10px;right:10px;z-index:50;width:34px;height:34px;place-items:center;border-radius:50%;background:rgba(17,19,27,.7);color:#ebe7de;text-decoration:none;font-size:15px;opacity:.55;transition:opacity .15s}
+html.kiosk .kclose:hover,html.kiosk .kclose:focus-visible{opacity:1}
+html.kiosk:not(.kready) body::before{content:"Завантажую роботу…";position:fixed;inset:0;display:grid;place-items:center;color:#979cad;font-family:var(--f-mono);font-size:14px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg button{background:none;border:none;padding:6px 14px;cursor:pointer;color:var(--muted);font-weight:500;font-size:14px}
+.seg button[aria-pressed="true"]{background:var(--accent);color:var(--accent-ink)}
+.proj-name{font-family:var(--f-mono);font-size:12px;color:var(--muted);flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.actions{display:flex;flex-wrap:wrap;gap:6px}
+.actions input{display:none}
+
+.btn{background:var(--panel);border:1px solid var(--line);border-radius:5px;padding:6px 11px;cursor:pointer;font-size:14px;display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.btn:hover{border-color:var(--muted)}
+.btn:disabled{opacity:.4;cursor:default}
+.btn.primary{background:var(--accent);color:var(--accent-ink);border-color:var(--accent);font-weight:600}
+.btn.small{padding:3px 9px;font-size:13px}
+.btn.danger{color:var(--bad)}
+.row{display:flex;flex-wrap:wrap;gap:6px;align-items:center}
+
+/* ===== Editor ===== */
+.ed{display:grid;grid-template-columns:minmax(0,1fr) 390px;gap:16px;max-width:1600px;margin:0 auto;height:calc(100vh - 96px);min-height:540px}
+@media (max-width:980px){.ed{grid-template-columns:minmax(0,1fr);height:auto}.cvs{height:62vh}}
+.cvs{position:relative;overflow:hidden;border:1px solid var(--line);border-radius:8px;background-color:#0d0f15;background-image:radial-gradient(circle,#262a39 1px,transparent 1.3px);touch-action:none;user-select:none;-webkit-user-select:none;min-height:360px}
+.world{position:absolute;left:0;top:0;transform-origin:0 0}
+#edges{position:absolute;left:0;top:0;width:1px;height:1px;overflow:visible;pointer-events:none}
+.e{fill:none;stroke-width:1.7;transition:opacity .15s}
+.e-g{stroke:var(--link)} .e-c{stroke:var(--cool)} .e-q{stroke:var(--accent);stroke-dasharray:6 4} .e-h{stroke:var(--good);stroke-dasharray:2 4}
+.ah{stroke:none} .ah.a-g{fill:var(--link)} .ah.a-c{fill:var(--cool)} .ah.a-q{fill:var(--accent)} .ah.a-h{fill:var(--good)}
+.e.hl{stroke-width:2.8} .dim{opacity:.28}
+.e.tmp{stroke:var(--fg);stroke-dasharray:4 4}
+
+.ed-tools{position:absolute;left:10px;top:10px;right:10px;display:flex;flex-wrap:wrap;gap:6px;z-index:2;pointer-events:none}
+.ed-tools > *{pointer-events:auto}
+.zoom{display:inline-flex;align-items:center;border:1px solid var(--line);border-radius:5px;background:var(--panel)}
+.zoom button{background:none;border:none;padding:3px 9px;cursor:pointer;font-size:14px}
+.zoom span{font-family:var(--f-mono);font-size:12px;color:var(--muted);min-width:44px;text-align:center;font-variant-numeric:tabular-nums}
+.ed-hint{position:absolute;left:10px;right:10px;bottom:8px;font-size:12px;color:var(--muted);pointer-events:none;text-shadow:0 1px 3px #000}
+
+.gnode{position:absolute;width:220px;background:var(--panel);border:1px solid var(--line);border-radius:8px;box-shadow:0 6px 18px rgba(0,0,0,.35);cursor:grab}
+.gnode.sel{border-color:var(--accent);box-shadow:0 0 0 1px var(--accent),0 10px 26px rgba(0,0,0,.5)}
+.gnode.err{border-color:var(--bad)}
+.gnode.sel.err{box-shadow:0 0 0 1px var(--bad),0 10px 26px rgba(0,0,0,.5)}
+.gnode.drop{box-shadow:0 0 0 3px var(--cool)}
+.gin{position:absolute;left:-6px;top:12px;width:11px;height:11px;border-radius:50%;background:var(--link);border:2px solid #0d0f15}
+.gh{display:flex;align-items:center;gap:7px;padding:8px 10px 3px}
+.gsw{width:10px;height:10px;border-radius:2px;flex:none;box-shadow:inset 0 0 0 1px rgba(255,255,255,.25)}
+.gt{font-weight:600;font-size:13px;flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gb{font-family:var(--f-mono);font-size:10px;letter-spacing:.06em;padding:1px 5px;border-radius:3px;background:var(--accent);color:var(--accent-ink);flex:none}
+.gb.warn{background:none;color:var(--accent);box-shadow:inset 0 0 0 1px var(--accent)}
+.gb.bad{background:var(--bad);color:#1b0b08}
+.gm{padding:0 10px 7px;font-family:var(--f-mono);font-size:11px;color:var(--muted);display:flex;justify-content:space-between;gap:8px}
+.gm span{overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gm .miss{color:var(--accent)}
+.gaud{margin-top:-4px}
+.gthumb{display:block;width:100%;height:86px;object-fit:cover;border-radius:7px 7px 0 0;border-bottom:1px solid var(--line-2);pointer-events:none;-webkit-user-drag:none;background:#0d0f15}
+.dropfld{outline:2px solid var(--cool)!important;background:#1c2a36!important}
+.insp.dropins{outline:2px dashed var(--cool);outline-offset:-5px}
+.cvs.dropnew{outline:2px dashed var(--accent);outline-offset:-6px}
+.drophint{position:fixed;left:50%;top:calc(10px + env(safe-area-inset-top,0px));transform:translateX(-50%);background:var(--accent);color:var(--accent-ink);padding:8px 14px;border-radius:6px;font-weight:600;font-size:14px;z-index:70;pointer-events:none;max-width:calc(100% - 32px);text-align:center;box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.gx{position:relative;display:flex;align-items:center;gap:6px;padding:4px 18px 4px 10px;font-size:12px;border-top:1px solid var(--line-2);min-height:25px}
+.gx .lbl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.gx .tm{font-family:var(--f-mono);font-size:10px;color:var(--muted);flex:none}
+.gx .lock{font-size:10px;color:var(--muted);border:1px solid var(--line);border-radius:3px;padding:0 4px;flex:none}
+.k-g{--kc:var(--link)} .k-c{--kc:var(--cool)} .k-q{--kc:var(--accent)} .k-h{--kc:var(--good)}
+.port{position:absolute;right:-7px;top:50%;margin-top:-7px;width:14px;height:14px;border-radius:50%;border:2px solid var(--kc);background:#0d0f15;cursor:crosshair}
+.port.on{background:var(--kc)}
+.port:hover{transform:scale(1.25)}
+.gend{padding:5px 10px 8px;border-top:1px solid var(--line-2);font-size:12px;color:var(--good);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+
+/* Inspector */
+.insp{background:var(--panel);border:1px solid var(--line);border-radius:8px;overflow:auto;padding:14px;display:flex;flex-direction:column;gap:12px;min-width:0}
+.ititle{margin:0;font-family:var(--f-display);font-weight:500;font-size:17px}
+.ihead{display:flex;flex-direction:column;gap:8px}
+.sid{background:transparent;border:1px solid transparent;border-radius:5px;padding:2px 6px;margin-left:-6px;font-family:var(--f-mono);font-size:15px;color:var(--accent);width:100%}
+.sid:hover,.sid:focus{border-color:var(--line);background:var(--bg)}
+.sec{display:flex;flex-direction:column;gap:9px;border-top:1px solid var(--line);padding-top:12px}
+.sec h4,.insp h4,.cpanel h4{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.f{display:flex;flex-direction:column;gap:3px;font-size:12px;color:var(--muted);min-width:0}
+.f small{font-size:11px;opacity:.85}
+.f input:not([type="checkbox"]),.f select,.f textarea,.vrow input{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:6px 8px;color:var(--fg);font-size:14px;width:100%;min-width:0}
+.f textarea{min-height:64px;resize:vertical}
+.f input[type="color"]{padding:2px;height:32px;width:64px}
+.f.chk{flex-direction:row;align-items:center;gap:8px;font-size:13px;cursor:pointer}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.card{border:1px solid var(--line);border-radius:6px;padding:10px;display:flex;flex-direction:column;gap:8px;position:relative;background:var(--card)}
+.card.on{border-color:var(--good)}
+.card-h{font-size:12px;font-weight:600;color:var(--fg);padding-right:24px}
+.card-h .tm{font-family:var(--f-mono);color:var(--muted);font-weight:500}
+.x{position:absolute;top:5px;right:5px;width:24px;height:24px;border:none;background:none;border-radius:4px;cursor:pointer;color:var(--muted);font-size:17px;line-height:1}
+.x:hover{background:var(--line);color:var(--bad)}
+.seg2{display:grid;grid-template-columns:repeat(4,1fr);border:1px solid var(--line);border-radius:6px;overflow:hidden}
+.seg2 button{background:none;border:none;padding:6px 4px;cursor:pointer;color:var(--muted);font-size:13px;border-left:1px solid var(--line)}
+.seg2 button:first-child{border-left:none}
+.seg2 button[aria-pressed="true"]{background:#2a2f40;color:var(--fg);box-shadow:inset 0 -2px 0 var(--accent)}
+.vrow{display:grid;grid-template-columns:1fr 1fr 26px;gap:6px;align-items:center}
+.vrow input{font-family:var(--f-mono);font-size:13px}
+.vrow .x{position:static}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.stat{background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:8px 10px}
+.stat b{display:block;font-family:var(--f-display);font-size:20px;font-weight:500;font-variant-numeric:tabular-nums}
+.stat span{font-size:12px;color:var(--muted)}
+.keys{margin:0;padding:0;list-style:none;display:flex;flex-direction:column;gap:4px;font-size:13px;color:var(--muted)}
+.keys kbd{font-family:var(--f-mono);font-size:11px;border:1px solid var(--line);border-radius:3px;padding:0 5px;color:var(--fg)}
+
+.hsbox{position:relative;aspect-ratio:16/9;max-width:100%;background:var(--c,#2d3a5c);border-radius:6px;overflow:hidden;cursor:crosshair;touch-action:none;user-select:none;-webkit-user-select:none}
+.hsbox::after{content:"";position:absolute;inset:0;background:radial-gradient(circle at 30% 30%,rgba(255,255,255,.08),rgba(0,0,0,.45));pointer-events:none}
+.hsbox video,.hsbox img{position:absolute;inset:0;width:100%;height:100%;object-fit:contain;background:#000;pointer-events:none}
+.hsbox img{object-fit:cover}
+.hsph{position:absolute;left:10px;top:8px;font-family:var(--f-display);font-size:12px;color:rgba(235,231,222,.6);z-index:1}
+.hsr{position:absolute;border:1.5px dashed rgba(127,196,141,.75);background:rgba(127,196,141,.1);border-radius:4px;font-size:10px;display:flex;align-items:flex-end;justify-content:center;overflow:hidden;z-index:2}
+.hsr.on{border:2px solid var(--good);background:rgba(127,196,141,.24);cursor:move}
+.hsr span{background:rgba(17,19,27,.85);padding:0 4px;border-radius:2px;white-space:nowrap;margin-bottom:2px}
+.coords{font-family:var(--f-mono);font-size:11px;color:var(--muted)}
+
+/* ===== Player ===== */
+.wrap{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:20px;max-width:1600px;margin:0 auto}
+@media (max-width:980px){.wrap{grid-template-columns:minmax(0,1fr)}}
+.stage{position:relative;aspect-ratio:16/9;max-width:100%;background:#000;border-radius:6px;overflow:hidden;user-select:none;-webkit-user-select:none}
+.stage video,.stage canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.stage video{object-fit:contain;background:#000}
+.stage img{position:absolute;inset:0;width:100%;height:100%;object-fit:cover;display:block;transform-origin:60% 40%}
+@keyframes kb{from{transform:scale(1)}to{transform:scale(1.14) translate(-1.5%,-1%)}}
+.ov{position:absolute;inset:0;pointer-events:none}
+.ov > *{pointer-events:auto}
+.hotspot{position:absolute;border:2px dashed rgba(240,166,58,.9);background:rgba(240,166,58,.12);border-radius:6px;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;padding:4px;animation:hs 1.6s ease-in-out infinite}
+.hotspot span{background:rgba(17,19,27,.85);font-size:12px;padding:2px 6px;border-radius:3px;white-space:nowrap}
+.hotspot:hover{background:rgba(240,166,58,.25)}
+.cap{position:absolute;left:clamp(10px,4%,48px);right:clamp(10px,4%,48px);bottom:clamp(10px,6%,40px);padding:clamp(10px,1.6vw,18px) clamp(14px,2.4vw,26px);background:rgba(10,11,16,.8);border:1px solid rgba(255,255,255,.12);border-radius:10px;pointer-events:none;font-size:clamp(14px,2.1vw,22px);line-height:1.45;white-space:pre-line;backdrop-filter:blur(4px);animation:capIn .25s ease-out}
+.cap b{display:block;font-family:var(--f-mono);font-weight:500;font-size:.62em;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
+@keyframes capIn{from{opacity:0;transform:translateY(6px)}}
+.hotspot.hid{border-color:transparent;background:transparent;animation:none;transition:border-color .15s,background .15s}
+.hotspot.hid span{opacity:0;transition:opacity .15s}
+.hotspot.hid:hover,.hotspot.hid:focus-visible{border-color:rgba(240,166,58,.9);background:rgba(240,166,58,.18)}
+.hotspot.hid:hover span,.hotspot.hid:focus-visible span{opacity:1}
+@keyframes hs{50%{border-color:rgba(240,166,58,.35)}}
+.choice{position:absolute;left:0;right:0;bottom:0;padding:18px clamp(12px,3vw,32px) clamp(14px,3vw,28px);background:linear-gradient(to top,rgba(10,11,16,.92) 55%,rgba(10,11,16,0));display:flex;flex-direction:column;gap:12px}
+.choice h3{margin:0;font-family:var(--f-display);font-weight:500;font-size:clamp(14px,2.2vw,22px);text-wrap:balance}
+.opts{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:8px}
+.opt{display:flex;gap:10px;align-items:center;text-align:left;background:rgba(235,231,222,.08);border:1px solid rgba(235,231,222,.25);border-radius:6px;padding:10px 12px;cursor:pointer;font-size:clamp(13px,1.6vw,15px)}
+.opt:hover,.opt:focus-visible{background:var(--accent);color:var(--accent-ink);border-color:var(--accent)}
+.opt kbd{font-family:var(--f-mono);font-size:11px;border:1px solid currentColor;border-radius:3px;padding:0 5px;opacity:.7}
+.timebar{height:4px;background:rgba(235,231,222,.15);border-radius:2px;overflow:hidden}
+.timebar i{display:block;height:100%;background:var(--accent);transform-origin:left}
+.qte{position:absolute;inset:0;display:grid;place-items:center;background:radial-gradient(circle,rgba(10,11,16,.2),rgba(10,11,16,.6))}
+.qte-in{display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center;padding:16px}
+.qte h3{margin:0;font-family:var(--f-display);font-size:clamp(16px,3vw,30px);text-shadow:0 2px 12px #000}
+.qte-btn{position:relative;width:clamp(90px,16vw,140px);aspect-ratio:1;border-radius:50%;border:none;background:transparent;cursor:pointer;display:grid;place-items:center}
+.qte-btn svg{position:absolute;inset:0;width:100%;height:100%;transform:rotate(-90deg)}
+.qte-btn b{font-family:var(--f-mono);font-size:clamp(12px,1.8vw,16px);background:var(--accent);color:var(--accent-ink);padding:6px 10px;border-radius:4px;transition:transform .08s}
+.qte-btn.hit b{transform:scale(.88)}
+.qte small{font-family:var(--f-mono);color:var(--fg);opacity:.85}
+.flash-good{animation:fg .5s}
+.flash-bad{animation:fb .5s}
+@keyframes fg{from{box-shadow:inset 0 0 0 6px var(--good)}}
+@keyframes fb{from{box-shadow:inset 0 0 0 6px var(--bad)}}
+.screen{position:absolute;inset:0;display:flex;flex-direction:column;justify-content:center;align-items:flex-start;gap:12px;padding:clamp(16px,5vw,56px);background:rgba(10,11,16,.88)}
+.screen .eyebrow{font-family:var(--f-mono);font-size:12px;letter-spacing:.12em;text-transform:uppercase;color:var(--accent)}
+.screen h2{margin:0;font-family:var(--f-display);font-weight:700;font-size:clamp(20px,4vw,40px);text-wrap:balance;max-width:20ch}
+.screen p{margin:0;color:var(--muted);max-width:55ch;font-size:clamp(13px,1.7vw,16px)}
+.hud{display:flex;flex-wrap:wrap;align-items:center;gap:10px 14px;margin-top:10px}
+.tc{font-family:var(--f-mono);font-size:13px;font-variant-numeric:tabular-nums;color:var(--muted)}
+.scn{font-weight:600;flex:1;min-width:120px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.prog{height:3px;background:var(--line);border-radius:2px;margin-top:8px;overflow:hidden}
+.prog i{display:block;height:100%;width:0;background:var(--cool)}
+.panel{background:var(--panel);border:1px solid var(--line);border-radius:8px;display:flex;flex-direction:column;min-width:0;max-height:calc(100vh - 100px);min-height:420px}
+@media (max-width:980px){.panel{max-height:none}}
+.tabs{display:flex;border-bottom:1px solid var(--line)}
+.tab{flex:1;background:none;border:none;padding:11px 8px;cursor:pointer;color:var(--muted);font-size:13px;font-weight:500;letter-spacing:.04em;text-transform:uppercase;border-bottom:2px solid transparent}
+.tab[aria-selected="true"]{color:var(--fg);border-bottom-color:var(--accent)}
+.pane{padding:14px;overflow:auto;flex:1;min-height:0;display:flex;flex-direction:column;gap:12px}
+.pane h4{margin:0;font-size:12px;letter-spacing:.08em;text-transform:uppercase;color:var(--muted);font-weight:500}
+.hint{font-size:13px;color:var(--muted);margin:0}
+.mapbox{overflow:auto;border:1px solid var(--line);border-radius:6px;background:var(--bg);min-height:240px;flex:1}
+.mapbox svg{display:block}
+.node rect{fill:var(--panel);stroke:var(--line);stroke-width:1.2}
+.node text{fill:var(--muted);font-size:11px;font-family:var(--f-body)}
+.node.seen rect{stroke:#4a5068;fill:#1e2230}
+.node.seen text{fill:#c6c3bb}
+.node.visited rect{stroke:var(--cool);fill:#1c2a36}
+.node.visited text{fill:var(--fg)}
+.node.current rect{stroke:var(--accent);stroke-width:2.4;fill:#33280f}
+.node.click{cursor:pointer}
+.edge{fill:none;stroke:#363b50;stroke-width:1.2}
+.edge.taken{stroke:var(--cool);stroke-width:2}
+.legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--muted)}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px;border:1.5px solid}
+label.tog{display:flex;align-items:center;gap:8px;font-size:13px;color:var(--muted);cursor:pointer}
+.vars{display:grid;grid-template-columns:auto 1fr;gap:4px 14px;font-family:var(--f-mono);font-size:13px;margin:0}
+.vars dt{color:var(--muted)}
+.vars dd{margin:0;font-variant-numeric:tabular-nums}
+.log{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:6px;font-size:13px}
+.log li{display:grid;grid-template-columns:22px 1fr;gap:6px;align-items:baseline}
+.log li b{font-family:var(--f-mono);font-size:11px;color:var(--muted);font-weight:500}
+.log em{font-style:normal;color:var(--accent)}
+.endings{display:flex;flex-wrap:wrap;gap:6px}
+.chip{font-size:12px;border:1px solid var(--line);border-radius:999px;padding:2px 10px;color:var(--muted)}
+.chip.got{border-color:var(--good);color:var(--good)}
+textarea.code{width:100%;min-height:280px;flex:1;resize:vertical;background:var(--bg);border:1px solid var(--line);border-radius:6px;padding:10px;font-family:var(--f-mono);font-size:12px;line-height:1.45;tab-size:2;white-space:pre;color:var(--fg)}
+.issues{margin:0;padding-left:18px;font-size:13px;display:flex;flex-direction:column;gap:3px}
+.issues .err{color:var(--bad)}
+.issues .warn{color:var(--accent)}
+.issues .ok{color:var(--good);list-style:none;margin-left:-18px}
+.issues [data-act]{cursor:pointer}
+.issues [data-act]:hover{text-decoration:underline}
+details{font-size:13px}
+details summary{cursor:pointer;color:var(--muted)}
+details pre{white-space:pre-wrap;font-family:var(--f-mono);font-size:12px;background:var(--bg);padding:10px;border-radius:6px;border:1px solid var(--line);overflow-x:auto}
+
+.toast{position:fixed;left:50%;transform:translateX(-50%);bottom:calc(18px + env(safe-area-inset-bottom,0px));background:#2a2f40;border:1px solid var(--line);padding:8px 14px;border-radius:6px;font-size:14px;z-index:50;max-width:calc(100% - 32px);box-shadow:0 8px 24px rgba(0,0,0,.5)}
+.modal{position:fixed;inset:0;background:rgba(5,6,10,.72);display:grid;place-items:center;z-index:60;padding:16px}
+.mbox{background:var(--panel);border:1px solid var(--line);border-radius:10px;padding:18px;width:min(640px,100%);display:flex;flex-direction:column;gap:10px;max-height:90vh}
+.mbox h3{margin:0;font-family:var(--f-display);font-weight:500;font-size:17px}
+/* ===== Course ===== */
+.course{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:16px;max-width:1600px;margin:0 auto}
+@media (max-width:980px){.course{grid-template-columns:minmax(0,1fr)}}
+.course.one{grid-template-columns:minmax(0,1fr);max-width:760px}
+.cpanel{background:var(--panel);border:1px solid var(--line);border-radius:8px;padding:16px;display:flex;flex-direction:column;gap:12px;min-width:0;align-self:start}
+.cpanel p{margin:0}
+.wlist{display:flex;flex-direction:column;gap:8px}
+.witem{border:1px solid var(--line);border-radius:6px;padding:10px 12px;background:var(--card);display:grid;grid-template-columns:minmax(0,1fr) auto;gap:6px 12px;align-items:start}
+.witem.cur{border-color:var(--accent)}
+.witem h5{margin:0;font-size:15px;font-weight:600;overflow-wrap:anywhere}
+.meta{font-size:12px;color:var(--muted)}
+.st{display:inline-block;font-size:11px;letter-spacing:.03em;border:1px solid var(--line);border-radius:999px;padding:0 8px;color:var(--muted);white-space:nowrap}
+.st.sub{color:var(--cool);border-color:var(--cool)}
+.st.chg{color:var(--accent);border-color:var(--accent)}
+.st.ok{color:var(--good);border-color:var(--good)}
+.rev{grid-column:1/-1;font-size:13px;border-left:2px solid var(--good);padding-left:10px;white-space:pre-wrap;overflow-wrap:anywhere}
+.rev b{color:var(--good)}
+.tablewrap{overflow-x:auto;border:1px solid var(--line);border-radius:6px}
+table.subs{width:100%;border-collapse:collapse;font-size:13px;min-width:720px}
+table.subs th{font-size:11px;letter-spacing:.06em;text-transform:uppercase;color:var(--muted);font-weight:500;text-align:left;padding:8px 10px;border-bottom:1px solid var(--line);background:var(--card)}
+table.subs td{padding:8px 10px;border-bottom:1px solid var(--line-2);vertical-align:top}
+table.subs tr.gr td{background:var(--card)}
+.who{display:flex;align-items:center;gap:8px;min-width:0}
+.who img{width:24px;height:24px;border-radius:50%;flex:none}
+.who small{display:block;color:var(--muted);font-size:11px}
+.gform{display:grid;grid-template-columns:140px minmax(0,1fr) auto;gap:8px;align-items:end}
+@media (max-width:640px){.gform{grid-template-columns:minmax(0,1fr)}}
+.asg{border-top:1px solid var(--line-2);padding-top:10px;display:flex;flex-direction:column;gap:4px}
+.asg:first-child{border-top:none;padding-top:0}
+.asg h5{margin:0;font-size:14px}
+.asg p{font-size:13px;color:var(--muted);white-space:pre-wrap;overflow-wrap:anywhere}
+.meter{height:6px;background:var(--bg);border:1px solid var(--line);border-radius:3px;overflow:hidden}
+.meter i{display:block;height:100%;background:var(--cool)}
+.warnbox{font-size:13px;color:var(--accent);border:1px solid rgba(240,166,58,.4);border-radius:6px;padding:8px 10px;overflow-wrap:anywhere}
+.ctabs{display:inline-flex;border:1px solid var(--line);border-radius:6px;overflow:hidden;align-self:flex-start}
+.ctabs button{background:none;border:none;padding:6px 12px;cursor:pointer;color:var(--muted);font-size:13px}
+.ctabs button[aria-pressed="true"]{background:#2a2f40;color:var(--fg)}
+.cloud{font-family:var(--f-mono);font-size:12px;padding:3px 9px;border:1px solid var(--line);border-radius:999px;color:var(--muted);cursor:pointer;background:none;white-space:nowrap}
+.cloud.on{color:var(--cool);border-color:var(--cool)}
+.cloud.busy{color:var(--accent);border-color:var(--accent)}
+.cloud.err{color:var(--bad);border-color:var(--bad)}
+.banner{max-width:1600px;margin:0 auto 12px;background:#1c2a36;border:1px solid var(--cool);border-radius:8px;padding:8px 12px;display:flex;flex-wrap:wrap;gap:8px 12px;align-items:center;font-size:14px}
+.banner span{flex:1;min-width:200px}
+.banner.zipbar{background:#2a2410;border-color:var(--accent)}
+.banner.zipbar select{background:var(--bg);border:1px solid var(--line);border-radius:5px;padding:4px 8px;max-width:240px;color:var(--fg)}
+.banner .warn{color:var(--accent)}
+.prog-line{height:6px;background:var(--line);border-radius:3px;overflow:hidden}
+.prog-line i{display:block;height:100%;width:0;background:var(--accent);transition:width .15s}
+.exp-list{margin:0;padding:0;list-style:none;max-height:220px;overflow:auto;font-family:var(--f-mono);font-size:12px;display:flex;flex-direction:column;gap:3px;border:1px solid var(--line);border-radius:6px;padding:8px;background:var(--bg)}
+.exp-list li{display:flex;justify-content:space-between;gap:12px}
+.exp-list li span:first-child{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;min-width:0}
+.exp-list li span:last-child{color:var(--muted);flex:none}
+.exp-list li.miss span:last-child{color:var(--bad)}
+@media (prefers-reduced-motion:reduce){*{animation:none!important;transition:none!important}}
+html,body{margin:0}
+img{max-width:100%}
+</style>
+</head>
+<body>
+<header class="top">
+  <a class="brand" href="index.html" title="До галереї робіт">Розвил<span>ка</span></a>
+  <a class="btn small" href="index.html" title="Галерея робіт студентів">‹ Галерея</a>
+  <div class="seg" id="seg" role="group" aria-label="Режим">
+    <button data-mode="edit" aria-pressed="true">Редактор</button>
+    <button data-mode="play" aria-pressed="false">Перегляд</button>
+    <button data-mode="course" aria-pressed="false">Курс</button>
+  </div>
+  <div class="proj-name" id="projName"></div>
+  <button class="cloud" id="cloudChip" hidden title="Відкрити «Курс»"></button>
+  <div class="actions">
+    <button class="btn small" id="bNew">Новий</button>
+    <button class="btn small" id="bDemo" title="Подивитися демо-проєкт. Ваша робота не зміниться">Демо</button>
+    <label class="btn small" for="inZip" title="Продовжити роботу з ZIP, який ви вивантажили раніше">Відкрити ZIP</label>
+    <input type="file" id="inZip" accept=".zip,application/zip">
+    <label class="btn small" for="inFolder" title="Папка з project.json і відео">Відкрити папку</label>
+    <input type="file" id="inFolder" webkitdirectory directory multiple>
+    <label class="btn small" for="inFiles" title="project.json та/або відеофайли">Файли</label>
+    <input type="file" id="inFiles" multiple accept=".json,.zip,video/*,audio/*,image/*">
+    <button class="btn small" id="bSave" title="Зберегти лише текст проєкту, без відео й зображень">project.json</button>
+    <button class="btn small" id="bReview" title="Для викладача: відкрити ZIP-архіви робіт студентів">Перевірка робіт</button>
+    <input type="file" id="inReview" multiple accept=".zip,application/zip">
+    <button class="btn small primary" id="bZip" title="Проєкт і всі його файли одним архівом для здачі">Вивантажити ZIP</button>
+  </div>
+</header>
+
+<div class="banner" id="reviewBanner" hidden></div>
+<div class="banner zipbar" id="zipBar" hidden></div>
+
+<!-- ============ EDITOR ============ -->
+<main class="ed" id="modeEdit">
+  <div class="cvs" id="cvs">
+    <div class="world" id="world"><svg id="edges"></svg><div id="nodes"></div></div>
+    <div class="ed-tools">
+      <button class="btn small primary" id="bAdd">+ Сцена</button>
+      <button class="btn small" id="bLayout">Упорядкувати</button>
+      <button class="btn small" id="bFit">Вмістити</button>
+      <div class="zoom"><button id="bZo" aria-label="Зменшити">−</button><span id="zoomLbl">100%</span><button id="bZi" aria-label="Збільшити">+</button></div>
+      <button class="btn small" id="bUndo" title="Ctrl+Z">↶</button>
+      <button class="btn small" id="bRedo" title="Ctrl+Shift+Z">↷</button>
+      <button class="btn small" id="bPlayStart">▶ Тест з початку</button>
+    </div>
+    <div class="ed-hint">Подвійний клік — нова сцена · кружечок виходу тягніть на сцену · файли кидайте на сцену або на порожнє поле · колесо — масштаб</div>
+  </div>
+  <aside class="insp" id="insp"></aside>
+  <datalist id="listVideo"></datalist><datalist id="listImage"></datalist><datalist id="listAudio"></datalist>
+</main>
+
+<!-- ============ PLAYER ============ -->
+<a class="kclose" href="index.html" title="До галереї (Esc)" aria-label="До галереї">✕</a>
+<main class="wrap" id="modePlay" hidden>
+  <section>
+    <div class="stage" id="stage">
+      <canvas id="cv"></canvas>
+      <video id="vid" playsinline hidden></video>
+      <img id="img" alt="" hidden>
+      <div class="cap" id="cap" hidden></div>
+      <div class="ov" id="ov"></div>
+    </div>
+    <div class="prog"><i id="progBar"></i></div>
+    <div class="hud">
+      <button class="btn small" id="btnPause">❚❚ Пауза</button>
+      <button class="btn small" id="btnRestart">↺ Спочатку</button>
+      <button class="btn small" id="btnMute">♪ Звук увімкнено</button>
+      <button class="btn small" id="btnEdit">✎ До редактора</button>
+      <span class="scn" id="hudScene">—</span>
+      <span class="tc" id="hudTc">00:00 / 00:00</span>
+    </div>
+  </section>
+
+  <aside class="panel">
+    <div class="tabs" role="tablist">
+      <button class="tab" role="tab" aria-selected="true" data-tab="map">Карта</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="state">Стан</button>
+      <button class="tab" role="tab" aria-selected="false" data-tab="proj">JSON</button>
+    </div>
+    <div class="pane" data-pane="map">
+      <div class="legend">
+        <span><i style="border-color:var(--accent);background:#33280f"></i>зараз</span>
+        <span><i style="border-color:var(--cool);background:#1c2a36"></i>цей прохід</span>
+        <span><i style="border-color:#4a5068;background:#1e2230"></i>бачили раніше</span>
+        <span><i style="border-color:var(--line)"></i>не відкрито</span>
+      </div>
+      <div class="mapbox" id="mapbox"></div>
+      <label class="tog"><input type="checkbox" id="authorMode" checked> Режим автора: показувати назви невідкритих сцен</label>
+      <p class="hint">Клік по пройденій сцені повертає до неї зі станом змінних на момент першого входу.</p>
+    </div>
+    <div class="pane" data-pane="state" hidden>
+      <h4>Змінні</h4>
+      <dl class="vars" id="vars"></dl>
+      <h4>Знайдені фінали</h4>
+      <div class="endings" id="endings"></div>
+      <h4>Шлях</h4>
+      <ol class="log" id="log"></ol>
+    </div>
+    <div class="pane" data-pane="proj" hidden>
+      <p class="hint">Текст проєкту. Зміни тут також з'являться в редакторі.</p>
+      <textarea class="code" id="json" spellcheck="false" aria-label="Текст проєкту"></textarea>
+      <div class="row"><button class="btn primary" id="btnApply">Застосувати і запустити</button></div>
+      <h4>Перевірка</h4>
+      <ul class="issues" id="issues"></ul>
+      <details>
+        <summary>Довідка з формату</summary>
+<pre>scenes.&lt;id&gt;:
+  title, text, video, image, kenburns, duration, color
+  voice             закадровий голос (аудіофайл)
+  music             фонова музика: "файл.mp3" або false (стоп)
+  pos {x,y}         місце на схемі редактора
+  hotspots[]        {from,to,x,y,w,h, label, hidden, if, set, add, goto}
+  events[]          {at, type:"choice"|"qte", ...}
+  end               {type:"goto"|"choice"|"qte"|"ending", ...}
+project.music: музика з початку історії
+project.author, description, cover: початковий екран і картка в галереї
+  lines[]           репліки-плашки {name, text, at}
+option: {label, goto, if, set, add}
+qte: {prompt, key, keyLabel, presses, window, success, fail, onFail}</pre>
+      </details>
+    </div>
+  </aside>
+</main>
+
+<!-- ============ COURSE ============ -->
+<main class="course" id="modeCourse" hidden></main>
+
+<div class="modal" id="expModal" hidden>
+  <div class="mbox" role="dialog" aria-labelledby="expTitle">
+    <h3 id="expTitle">Вивантажити ZIP</h3>
+    <label class="f"><span>Ім'я файлу (напишіть прізвище й ім'я)</span><input id="expName" type="text" spellcheck="false" autocomplete="off"></label>
+    <ul class="exp-list" id="expList" aria-label="Що потрапить в архів"></ul>
+    <p class="hint" id="expInfo"></p>
+    <div class="prog-line" id="expProg" hidden><i></i></div>
+    <div class="row"><button class="btn primary" id="expGo">Завантажити ZIP</button><button class="btn" id="expCancel">Скасувати</button></div>
+  </div>
+</div>
+<div class="modal" id="zipChoice" hidden>
+  <div class="mbox" role="dialog" aria-labelledby="zcTitle">
+    <h3 id="zcTitle">Що зробити з ZIP?</h3>
+    <p class="hint" id="zcInfo"></p>
+    <div class="row"><button class="btn primary" id="zcEdit">Відкрити для редагування</button><button class="btn" id="zcReview">Переглянути як роботу</button><button class="btn" id="zcCancel">Скасувати</button></div>
+  </div>
+</div>
+<div class="modal" id="saveModal" hidden>
+  <div class="mbox" role="dialog" aria-labelledby="saveTitle">
+    <h3 id="saveTitle">Експорт project.json</h3>
+    <p class="hint">У веб-версії сторінка не може сама зберігати файли. Скопіюйте текст і збережіть його як <b>project.json</b> поруч із відео. Якщо відкрити rozvylka.html зі свого комп'ютера, кнопка збереже файл одразу.</p>
+    <textarea class="code" id="saveText" readonly spellcheck="false" aria-label="JSON проєкту"></textarea>
+    <div class="row"><button class="btn primary" id="saveCopy">Копіювати</button><button class="btn" id="saveClose">Закрити</button></div>
+  </div>
+</div>
+<div class="toast" id="toast" role="status" hidden></div>
+<div class="drophint" id="dropHint" hidden></div>
+
+<script>
+const DEMO = {
+  "title": "Останній трамвай",
+  "start": "zupynka",
+  "variables": { "telefon": false, "vidvaha": 0 },
+  "scenes": {
+    "zupynka": {
+      "title": "Зупинка, 23:47", "duration": 9, "color": "#2d3a5c",
+      "text": "Порожня зупинка. Табло блимає знаком питання. На лавці хтось забув телефон.",
+      "hotspots": [{ "from": 1.5, "to": 8, "x": 0.64, "y": 0.56, "w": 0.16, "h": 0.2, "label": "Телефон на лавці", "set": { "telefon": true } }],
+      "end": { "type": "choice", "prompt": "Що робиш?", "timeout": 8, "default": 0, "options": [
+        { "label": "Чекати трамвай", "goto": "chekannya" },
+        { "label": "Піти пішки через парк", "goto": "park", "add": { "vidvaha": 1 } },
+        { "label": "Подзвонити другу з чужого телефону", "goto": "dzvinok", "if": "telefon" }
+      ] }
+    },
+    "chekannya": {
+      "title": "Чекання", "duration": 6, "color": "#3a2f4f",
+      "text": "Хвилини тягнуться. Нарешті вдалині дзвенить трамвай, і він не гальмує.",
+      "end": { "type": "goto", "goto": "tramvai" }
+    },
+    "tramvai": {
+      "title": "Трамвай не зупиняється", "duration": 7, "color": "#5a3b2a",
+      "text": "Двері ще відчинені. Є секунда, щоб заскочити.",
+      "events": [{ "at": 2.5, "type": "qte", "prompt": "Заскоч у двері!", "key": "Space", "keyLabel": "ПРОБІЛ", "window": 2.2, "success": "vseredyni", "fail": "proyikhav" }],
+      "end": { "type": "goto", "goto": "proyikhav" }
+    },
+    "vseredyni": {
+      "title": "Всередині", "duration": 5, "color": "#2f5a4a",
+      "text": "Ти в тамбурі, задиханий. Кондукторка дивиться з повагою.",
+      "end": { "type": "ending", "title": "Встиг", "text": "Найкоротший шлях додому і трохи адреналіну." }
+    },
+    "proyikhav": {
+      "title": "Трамвай поїхав", "duration": 6, "color": "#4a2a35",
+      "text": "Червоні вогні зникають за поворотом. Залишається ніч.",
+      "end": { "type": "choice", "prompt": "Як тепер?", "options": [
+        { "label": "Через парк", "goto": "park", "add": { "vidvaha": 1 } },
+        { "label": "Викликати таксі", "goto": "taksi" }
+      ] }
+    },
+    "park": {
+      "title": "Нічний парк", "duration": 10, "color": "#22402e",
+      "text": "Ліхтарі горять через один. Під ногами листя. Раптом щось шарудить у кущах.",
+      "events": [{ "at": 4, "type": "choice", "prompt": "Хтось у кущах!", "timeout": 4, "pause": false, "default": 1, "options": [
+        { "label": "Завмерти", "goto": "lysytsia" },
+        { "label": "Бігти", "goto": "bih", "add": { "vidvaha": 1 } }
+      ] }],
+      "end": { "type": "goto", "goto": "bih" }
+    },
+    "lysytsia": {
+      "title": "Лисиця", "duration": 6, "color": "#5c4a24",
+      "text": "З кущів виходить лисиця, дивиться на тебе і неквапом зникає.",
+      "end": { "type": "ending", "title": "Тиша парку", "text": "Іноді найкраще рішення — просто зупинитися." }
+    },
+    "bih": {
+      "title": "Біг", "duration": 6, "color": "#24384a",
+      "text": "Ти мчиш алеєю. Попереду величезна калюжа!",
+      "events": [{ "at": 1.5, "type": "qte", "prompt": "Розганяйся! Тисни швидко", "key": "Space", "keyLabel": "ПРОБІЛ", "presses": 5, "window": 2.6, "success": "pereskochyv", "fail": "kaliuzha" }],
+      "end": { "type": "goto", "goto": "kaliuzha" }
+    },
+    "pereskochyv": {
+      "title": "Перестрибнув", "duration": 5, "color": "#3c5a2a",
+      "text": "Приземлення на сухий асфальт. Вихід з парку вже видно.",
+      "end": { "type": "ending", "title": "Сухі кросівки", "text": "Сміливість і швидкі пальці." }
+    },
+    "kaliuzha": {
+      "title": "Калюжа", "duration": 5, "color": "#2a3a4a",
+      "text": "Плюх. По щиколотку. Решту шляху кросівки чвакають.",
+      "end": { "type": "ending", "title": "Мокрі ноги", "text": "Додому ти дійшов, але мама питатиме." }
+    },
+    "dzvinok": {
+      "title": "Дзвінок другу", "duration": 6, "color": "#2a4a5c",
+      "text": "Друг відповідає з першого гудка: стій там, під'їду за десять хвилин.",
+      "end": { "type": "ending", "title": "Друг поруч", "text": "Знахідка на лавці змінила вечір. Не забудь повернути телефон власнику." }
+    },
+    "taksi": {
+      "title": "Таксі", "duration": 5, "color": "#4a4426",
+      "text": "Машина приїжджає за дві хвилини. Ціна нічного тарифу болить.",
+      "end": { "type": "ending", "title": "Дорогий шлях", "text": "Тепло, сухо і мінус стипендія." }
+    }
+  }
+};
+
+/* ================= shared ================= */
+const $ = s => document.querySelector(s);
+const clone = o => JSON.parse(JSON.stringify(o));
+const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const fmt = t => { t = Math.max(0, t || 0); return String(Math.floor(t/60)).padStart(2,'0') + ':' + String(Math.floor(t%60)).padStart(2,'0'); };
+const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
+const KEY_STORE = 'rozvylka.draft.v1';
+const KEYS = { Space:'ПРОБІЛ', Enter:'ENTER', KeyE:'E', KeyF:'F', KeyQ:'Q', KeyR:'R', ArrowLeft:'←', ArrowRight:'→', ArrowUp:'↑', ArrowDown:'↓' };
+const PALETTE = ['#2d3a5c','#3a2f4f','#22402e','#5a3b2a','#24384a','#4a2a35','#4a4426','#2a4a5c'];
+
+let P = null, mode = 'edit';
+const files = new Map();
+const posters = new Map(), posterQ = [], posterFail = new Set();
+const ZR = { open:false, demo:false, list:[], i:-1, stash:null, urls:[], tok:null };
+const fileObjs = new Map();   // name -> File picked from disk (for uploading to the course)
+const isVid = n => /\.(mp4|webm|mov|m4v|ogv)$/i.test(n);
+const isImg = n => /\.(jpe?g|png|webp|gif|avif|svg)$/i.test(n);
+const isAud = n => /\.(mp3|wav|ogg|oga|m4a|aac|flac|opus)$/i.test(n);
+let noteT;
+function note(m){ const t = $('#toast'); t.textContent = m || ''; t.hidden = !m; clearTimeout(noteT); if (m) noteT = setTimeout(() => t.hidden = true, 4500); }
+
+function edgesOf(sc){
+  const out = []; const add = (to, kind) => to && out.push({ to, kind });
+  (sc.events || []).forEach(e => { (e.options || []).forEach(o => add(o.goto, 'c')); add(e.success, 'q'); add(e.fail, 'q'); add(e.goto, 'g'); });
+  (sc.hotspots || []).forEach(h => add(h.goto, 'h'));
+  const e = sc.end || {};
+  (e.options || []).forEach(o => add(o.goto, 'c')); add(e.success, 'q'); add(e.fail, 'q'); add(e.goto, 'g');
+  const seen = new Set(); return out.filter(x => !seen.has(x.to) && seen.add(x.to));
+}
+function validate(p){
+  const out = [];
+  if (!p || typeof p !== 'object' || !p.scenes || typeof p.scenes !== 'object') return [{ t:'err', m:'Немає поля "scenes".' }];
+  if (!Object.keys(p.scenes).length) return [{ t:'err', m:'У проєкті немає жодної сцени.' }];
+  if (!p.scenes[p.start]) out.push({ t:'err', m:`Стартова сцена "${p.start}" не знайдена.` });
+  const reach = new Set(), q = p.scenes[p.start] ? [p.start] : [];
+  while (q.length) { const id = q.shift(); if (reach.has(id)) continue; reach.add(id); edgesOf(p.scenes[id]).forEach(e => p.scenes[e.to] && q.push(e.to)); }
+  for (const [id, sc] of Object.entries(p.scenes)) {
+    const add = (t, m) => out.push({ t, id, m });
+    edgesOf(sc).forEach(e => { if (!p.scenes[e.to]) add('err', `перехід до неіснуючої сцени "${e.to}"`); });
+    const e = sc.end;
+    if (!e) add('warn', 'немає кінця, сцена вважатиметься фіналом');
+    else if (e.type === 'goto' && !e.goto) add('err', 'кінець сцени нікуди не веде');
+    else if (e.type === 'choice') {
+      if (!(e.options || []).length) add('err', 'фінальний вибір без варіантів');
+      else {
+        if (!e.options.some(o => !o.if)) add('warn', 'усі варіанти мають умови, глядач може застрягти');
+        e.options.forEach(o => { if (!o.goto) add('warn', `варіант «${o.label || '…'}» нікуди не веде і стане фіналом`); });
+      }
+    } else if (e.type === 'qte' && (!e.success || !e.fail)) add('warn', 'QTE в кінці: не з\'єднано успіх або провал');
+    if (files.size) ['video','image','voice','music'].forEach(k => { if (typeof sc[k] === 'string' && sc[k] && !files.has(sc[k])) add('warn', `файл "${sc[k]}" не знайдено серед підключених`); });
+    if (!reach.has(id)) add('warn', 'до сцени неможливо дійти зі старту');
+  }
+  return out;
+}
+
+/* ================= PLAYER ================= */
+const cv = $('#cv'), ctx = cv.getContext('2d'), vid = $('#vid'), img = $('#img'), ov = $('#ov');
+const seenEver = new Set(), endingsFound = new Set();
+const S = { id:null, vars:{}, visited:new Set(), taken:new Set(), log:[], snaps:{}, fired:new Set(),
+            endFired:false, active:null, paused:false, started:false, over:false };
+
+const M = {
+  mode:'demo', t:0, dur:6, playing:false, waitLoop:false,
+  load(scene){
+    this.t = 0; this.playing = true; this.waitLoop = false;
+    img.hidden = true; img.style.animation = 'none'; img.onerror = null;
+    const vurl = scene.video && files.get(scene.video), iurl = scene.image && files.get(scene.image);
+    if (vurl) {
+      this.mode = 'video'; vid.hidden = false; vid.loop = false; vid.muted = AU.muted; vid.src = vurl; this.dur = scene.duration || 0;
+      vid.onloadedmetadata = () => { this.dur = vid.duration; };
+      vid.onerror = () => { note(`Не вдалося відтворити «${scene.video}», показую заглушку.`); this.toDemo(scene); };
+      vid.play().catch(()=>{});
+      return;
+    }
+    this.toDemo(scene);
+    if (iurl) {
+      this.mode = 'image'; img.src = iurl; img.hidden = false;
+      img.onerror = () => { note(`Не вдалося показати «${scene.image}».`); img.hidden = true; this.mode = 'demo'; };
+      if (scene.kenburns) { void img.offsetWidth; img.style.animation = `kb ${isFinite(this.dur) ? this.dur : 12}s linear forwards`; }
+    }
+  },
+  toDemo(scene){
+    this.mode = 'demo'; vid.hidden = true; vid.onerror = null; vid.removeAttribute('src'); vid.load(); img.hidden = true;
+    this.t = 0; this.playing = true;
+    this.dur = scene.duration || (scene.voice && files.get(scene.voice) ? Infinity : linesEnd(scene) || 6);
+  },
+  advance(dt){ if (this.mode !== 'video' && this.playing) this.t = Math.min(this.dur, this.t + dt); },
+  time(){ return this.mode === 'video' && !this.waitLoop ? vid.currentTime : this.t; },
+  duration(){ return this.dur || 0; },
+  ended(){ return this.mode === 'video' ? (!this.waitLoop && (vid.ended || (this.dur > 0 && vid.currentTime >= this.dur - 0.04))) : this.t >= this.dur; },
+  pause(){ this.playing = false; if (this.mode === 'video') vid.pause(); img.style.animationPlayState = 'paused'; AU.voice.pause(); },
+  resume(){ this.playing = true; if (this.mode === 'video') vid.play().catch(()=>{}); img.style.animationPlayState = 'running'; if (AU.voiceActive) AU.voice.play().catch(()=>{}); },
+  loopWhileWaiting(file){
+    const url = file && files.get(file);
+    if (url && this.mode === 'video') { this.waitLoop = true; vid.src = url; vid.loop = true; vid.play().catch(()=>{}); }
+  }
+};
+
+/* Sound: voice-over per scene, background music that carries across scenes and ducks under the voice */
+const AU = {
+  music: new Audio(), voice: new Audio(), file: null, pending: undefined, muted: false, vol: 0, voiceActive: false,
+  reset(first){ this.stop(); if (first) this.setMusic(first); },
+  stop(){ this.music.pause(); this.music.removeAttribute('src'); this.file = null; this.pending = undefined; this.vol = 0; this.voice.pause(); this.voiceActive = false; },
+  scene(sc){
+    this.voice.pause(); this.voiceActive = false; this.voice.onloadedmetadata = this.voice.onerror = null;
+    const vu = sc.voice && files.get(sc.voice);
+    if (vu) {
+      this.voice.src = vu; this.voice.muted = this.muted; this.voiceActive = true;
+      this.voice.onended = () => { this.voiceActive = false; };
+      this.voice.onloadedmetadata = () => {
+        if (!sc.duration && M.mode !== 'video') { M.dur = this.voice.duration + 0.6; if (sc.kenburns) img.style.animationDuration = M.dur + 's'; }
+      };
+      this.voice.onerror = () => { this.voiceActive = false; if (!isFinite(M.dur)) M.dur = 6; };
+      this.voice.play().catch(() => {});
+    }
+    if (sc.music === false) this.setMusic(null); else if (sc.music) this.setMusic(sc.music);
+  },
+  setMusic(f){ if (f === this.file) return; this.file = f; this.pending = (f && files.get(f)) || null; },
+  target(){ return this.muted || !this.music.src ? 0 : (this.voiceActive && !this.voice.paused ? 0.18 : 0.6); },
+  tick(dt){
+    if (this.pending !== undefined) {
+      if (this.music.src && !this.music.paused && this.vol > 0.01) this.vol = Math.max(0, this.vol - dt * 1.5);
+      else {
+        const u = this.pending; this.pending = undefined; this.vol = 0;
+        if (u) { this.music.src = u; this.music.loop = true; this.music.play().catch(()=>{}); }
+        else { this.music.pause(); this.music.removeAttribute('src'); }
+      }
+    } else { const t = this.target(); this.vol += clamp(t - this.vol, -dt * 1.2, dt * 0.8); }
+    this.music.volume = clamp(this.vol, 0, 1);
+  },
+  pauseAll(){ this.music.pause(); this.voice.pause(); },
+  resumeAll(){ if (this.music.src) this.music.play().catch(()=>{}); },
+  setMuted(m){ this.muted = m; this.voice.muted = m; vid.muted = m; }
+};
+
+function cond(expr){
+  if (!expr) return true;
+  const m = String(expr).trim().match(/^(!)?\s*([\wА-Яа-яІіЇїЄєҐґ']+)\s*(==|!=|>=|<=|>|<)?\s*(.*)$/);
+  if (!m) return true;
+  const [, neg, name, op, raw] = m; const v = S.vars[name];
+  if (!op) return neg ? !v : !!v;
+  let r = raw.trim(); r = r === 'true' ? true : r === 'false' ? false : isNaN(+r) ? r.replace(/^["']|["']$/g,'') : +r;
+  return ({'==':v==r,'!=':v!=r,'>=':v>=r,'<=':v<=r,'>':v>r,'<':v<r})[op];
+}
+function applyFx(o){
+  if (!o) return;
+  if (o.set) Object.assign(S.vars, o.set);
+  if (o.add) for (const k in o.add) S.vars[k] = (+S.vars[k] || 0) + (+o.add[k]);
+}
+
+function startRun(from){
+  S.vars = clone(P.variables || {}); S.visited = new Set(); S.taken = new Set(); S.log = []; S.snaps = {};
+  S.over = false; S.paused = false; S.started = true;
+  setPauseLabel();
+  AU.reset(P.music);
+  enter(from && P.scenes[from] ? from : P.start);
+}
+function go(to, label){ if (!to) return; S.taken.add(S.id + '>' + to); enter(to, label); }
+function enter(id, via){
+  const sc = P.scenes[id];
+  clearOv();
+  if (!sc) { S.over = true; showScreen('Помилка', `Сцени «${esc(id)}» немає`, 'Перевірте переходи в редакторі.', false); return; }
+  S.id = id; S.visited.add(id); seenEver.add(id);
+  if (!S.snaps[id]) S.snaps[id] = clone(S.vars);
+  S.fired = new Set(); S.endFired = false; S.active = null; S.ln = { idx:-1, since:0, shown:-1 };
+  S.log.push({ id, via });
+  M.load(sc);
+  AU.scene(sc);
+  renderMap(); renderState();
+}
+function jumpTo(id){
+  if (!S.snaps[id]) return;
+  S.vars = clone(S.snaps[id]); S.over = false; S.paused = false; setPauseLabel();
+  S.log.push({ id:null, back:id });
+  enter(id, null);
+}
+function checkEvents(){
+  const sc = P.scenes[S.id]; if (!sc || S.active || S.over) return;
+  const t = M.time();
+  (sc.events || []).forEach((ev, i) => {
+    if (S.active || S.fired.has(i)) return;
+    if (t >= (+ev.at || 0)) { S.fired.add(i); activate(ev, false); }
+  });
+  if (!S.active && !S.endFired && M.ended()) { S.endFired = true; onEnd(sc); }
+}
+function onEnd(sc){
+  const e = sc.end || { type:'ending' };
+  if (e.type === 'goto' && e.goto) return go(e.goto);
+  if (e.type === 'choice' || e.type === 'qte') { M.loopWhileWaiting(e.loop); return activate(e, true); }
+  S.over = true; M.pause();
+  const cur = P.scenes[S.id] || {};
+  const title = e.title || cur.title || 'Фінал';
+  endingsFound.add(S.id);
+  renderState(); renderMap();
+  const total = Object.keys(P.scenes).length;
+  const allEnds = Object.values(P.scenes).filter(s => !s.end || s.end.type === 'ending').length;
+  showScreen('Фінал', esc(title), `${esc(e.text || '')}<br><br>Пройдено сцен: ${S.visited.size} з ${total}. Знайдено фіналів: ${endingsFound.size} з ${allEnds}.`, true);
+}
+function activate(ev, isEnd){
+  if (ev.type === 'qte') return startQte(ev, isEnd);
+  const opts = (ev.options || []).map((o, i) => ({ ...o, i })).filter(o => cond(o.if));
+  if (!opts.length) { if (isEnd) onEnd({ end:{ type:'ending' } }); return; }
+  const pause = !isEnd && ev.pause !== false;
+  if (pause) M.pause();
+  const el = document.createElement('div'); el.className = 'choice';
+  el.innerHTML = `${ev.prompt ? `<h3>${esc(ev.prompt)}</h3>` : ''}
+    <div class="opts">${opts.map((o, k) => `<button class="opt" data-k="${k}"><kbd>${k+1}</kbd><span>${esc(o.label)}</span></button>`).join('')}</div>
+    ${ev.timeout ? '<div class="timebar"><i></i></div>' : ''}`;
+  ov.appendChild(el);
+  el.querySelectorAll('.opt').forEach(b => b.onclick = () => pickChoice(+b.dataset.k));
+  S.active = { kind:'choice', ev, isEnd, opts, el, pause, elapsed:0, bar: el.querySelector('.timebar i') };
+}
+function pickChoice(k, auto){
+  const a = S.active; if (!a || a.kind !== 'choice') return;
+  const o = a.opts[k];
+  a.el.remove(); S.active = null;
+  applyFx(o);
+  if (S.log.length) S.log[S.log.length-1].choice = (auto ? '⏱ ' : '') + o.label;
+  if (o.goto) go(o.goto, o.label);
+  else { if (a.pause) M.resume(); renderState(); if (a.isEnd) onEnd({ end:{ type:'ending' } }); }
+}
+function choiceTimeout(){
+  const a = S.active;
+  if (a.ev.default != null) { let k = a.opts.findIndex(o => o.i === +a.ev.default); if (k < 0) k = 0; return pickChoice(k, true); }
+  if (a.isEnd) return pickChoice(0, true);
+  a.el.remove(); S.active = null; if (a.pause) M.resume();
+  if (S.log.length) S.log[S.log.length-1].choice = '⏱ без вибору';
+  renderState();
+}
+function startQte(ev, isEnd){
+  if (ev.pause && !isEnd) M.pause();
+  const need = Math.max(1, +ev.presses || 1), win = +ev.window || 2;
+  const el = document.createElement('div'); el.className = 'qte';
+  const C = 2 * Math.PI * 46;
+  el.innerHTML = `<div class="qte-in"><h3>${esc(ev.prompt || 'Швидше!')}</h3>
+    <button class="qte-btn" aria-label="Натиснути"><svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46" fill="rgba(10,11,16,.6)" stroke="rgba(235,231,222,.2)" stroke-width="6"/><circle class="ring" cx="50" cy="50" r="46" fill="none" stroke="#f0a63a" stroke-width="6" stroke-dasharray="${C}" stroke-dashoffset="0" stroke-linecap="round"/></svg><b>${esc(ev.keyLabel || KEYS[ev.key] || ev.key || 'ПРОБІЛ')}</b></button>
+    <small>${need > 1 ? `<span class="cnt">0</span> / ${need}` : 'або торкніться кнопки'}</small></div>`;
+  ov.appendChild(el);
+  const btn = el.querySelector('.qte-btn');
+  btn.onpointerdown = e => { e.preventDefault(); qteHit(); };
+  S.active = { kind:'qte', ev, isEnd, el, btn, need, win, count:0, elapsed:0, ring:el.querySelector('.ring'), C, cnt:el.querySelector('.cnt') };
+}
+function qteHit(){
+  const a = S.active; if (!a || a.kind !== 'qte') return;
+  a.count++; if (a.cnt) a.cnt.textContent = a.count;
+  a.btn.classList.add('hit'); setTimeout(() => a.btn.classList.remove('hit'), 80);
+  if (a.count >= a.need) qteDone(true);
+}
+function qteDone(ok){
+  const a = S.active; a.el.remove(); S.active = null;
+  const stage = $('#stage'); stage.classList.remove('flash-good','flash-bad'); void stage.offsetWidth;
+  stage.classList.add(ok ? 'flash-good' : 'flash-bad');
+  if (ok) applyFx(a.ev); else applyFx(a.ev.onFail);
+  if (S.log.length) S.log[S.log.length-1].choice = (ok ? '✓ ' : '✗ ') + (a.ev.prompt || 'QTE');
+  const to = ok ? a.ev.success : a.ev.fail;
+  if (to) return go(to);
+  if (a.ev.pause && !a.isEnd) M.resume();
+  renderState();
+  if (a.isEnd) onEnd({ end:{ type:'ending' } });
+}
+function tickActive(dt){
+  const a = S.active; if (!a) return;
+  a.elapsed += dt;
+  if (a.kind === 'choice' && a.ev.timeout) {
+    const f = Math.max(0, 1 - a.elapsed / a.ev.timeout);
+    a.bar.style.transform = `scaleX(${f})`;
+    if (f <= 0) choiceTimeout();
+  } else if (a.kind === 'qte') {
+    const f = Math.min(1, a.elapsed / a.win);
+    a.ring.style.strokeDashoffset = a.C * f;
+    if (f >= 1) qteDone(false);
+  }
+}
+/* --- репліки-плашки: sc.lines = [{name?, text, at?}] --- */
+const readTime = l => Math.max(2, 1 + String(l.text || '').length / 15);
+const sceneLines = sc => (sc && Array.isArray(sc.lines) ? sc.lines.filter(l => l && String(l.text || '').trim()) : []);
+function linesEnd(sc){
+  const L = sceneLines(sc); if (!L.length) return 0;
+  let st = 0, end = 0;
+  L.forEach((l, i) => { st = l.at != null && l.at !== '' ? +l.at : i ? st + readTime(L[i - 1]) : 0; end = st + readTime(l); });
+  return end + 0.5;
+}
+function showLine(L, i){
+  S.ln.idx = i; S.ln.since = M.time();
+  const cap = $('#cap'), l = L[i]; cap.hidden = false; cap.style.animation = 'none'; void cap.offsetWidth; cap.style.animation = '';
+  cap.innerHTML = (l.name ? `<b>${esc(l.name)}</b>` : '') + esc(l.text);
+}
+function syncLines(){
+  const cap = $('#cap'), L = sceneLines(P && P.scenes[S.id]);
+  if (!L.length || S.over || (S.active && S.active.kind === 'choice')) { cap.hidden = true; if (S.ln && S.ln.idx >= 0) S.ln.shown = -1; return; }
+  const n = S.ln, t = M.time(), nx = L[n.idx + 1];
+  if (t < n.since) n.since = t;
+  if (nx && (n.idx < 0 ? t >= (+nx.at || 0) : (nx.at != null && nx.at !== '' ? t >= +nx.at : t - n.since >= readTime(L[n.idx])))) showLine(L, n.idx + 1);
+  else if (n.idx >= 0 && n.shown !== n.idx) showLine(L, n.idx);
+  n.shown = n.idx;
+}
+function nextLine(){
+  if (!P || !S.started || S.over || S.paused || S.active) return false;
+  const L = sceneLines(P.scenes[S.id]); if (!L.length || S.ln.idx + 1 >= L.length) return false;
+  showLine(L, S.ln.idx + 1); S.ln.shown = S.ln.idx; return true;
+}
+$('#stage').addEventListener('click', e => { if (!e.target.closest('button,a,input,select,textarea,.choice,.qte')) nextLine(); });
+function syncHotspots(){
+  const sc = P && P.scenes[S.id]; if (!sc) return;
+  const t = M.time();
+  (sc.hotspots || []).forEach((h, i) => {
+    const key = 'hs' + i;
+    let el = ov.querySelector(`[data-hs="${i}"]`);
+    const show = !S.over && !S.fired.has(key) && t >= (+h.from || 0) && t <= (h.to ?? Infinity) && cond(h.if);
+    if (show && !el) {
+      el = document.createElement('button'); el.className = 'hotspot' + (h.hidden ? ' hid' : ''); el.dataset.hs = i;
+      Object.assign(el.style, { left: h.x*100+'%', top: h.y*100+'%', width: h.w*100+'%', height: h.h*100+'%' });
+      el.innerHTML = h.label ? `<span>${esc(h.label)}</span>` : '';
+      el.onclick = () => {
+        if (h.once !== false) S.fired.add(key);
+        el.remove(); applyFx(h);
+        S.log.push({ id:null, hs: h.label || 'хотспот' });
+        if (h.label) note(`Знайдено: ${h.label}`);
+        if (h.goto) go(h.goto); else renderState();
+      };
+      ov.appendChild(el);
+    } else if (!show && el) el.remove();
+  });
+}
+function clearOv(){ ov.innerHTML = ''; $('#cap').hidden = true; }
+function showScreen(eyebrow, title, text, withActions){
+  clearOv();
+  const el = document.createElement('div'); el.className = 'screen';
+  el.innerHTML = `<div class="eyebrow">${eyebrow}</div><h2>${title}</h2><p>${text}</p>
+    <div class="row">${withActions !== null ? '<button class="btn primary" data-a="restart">Спочатку</button>' : ''}${withActions ? '<button class="btn" data-a="map">Подивитися карту</button>' : ''}<button class="btn" data-a="edit">✎ До редактора</button></div>`;
+  ov.appendChild(el);
+  el.querySelector('[data-a="restart"]')?.addEventListener('click', () => startRun());
+  el.querySelector('[data-a="map"]')?.addEventListener('click', () => selectTab('map'));
+  const eb = el.querySelector('[data-a="edit"]');
+  if (KIOSK) { eb.textContent = '← До галереї'; eb.addEventListener('click', toGallery); el.querySelector('[data-a="map"]')?.remove(); }
+  else eb.addEventListener('click', () => setMode('edit'));
+}
+function showStart(){
+  S.started = false; S.over = false; S.id = null; S.log = []; S.visited = new Set(); S.taken = new Set();
+  S.vars = clone(P.variables || {});
+  M.toDemo({ duration: 1 }); M.pause(); AU.stop();
+  clearOv();
+  const n = Object.keys(P.scenes).length;
+  const el = document.createElement('div'); el.className = 'screen';
+  const cov = P.cover && files.get(P.cover);
+  if (cov) el.style.background = `linear-gradient(90deg,rgba(10,11,16,.9),rgba(10,11,16,.3)), url("${String(cov).replace(/"/g, '%22')}") center/cover no-repeat`;
+  const desc = String(P.description || '').trim();
+  el.innerHTML = `<div class="eyebrow">Інтерактивна історія · ${n} сцен${P.author ? ' · ' + esc(P.author) : ''}</div><h2>${esc(P.title || 'Без назви')}</h2>
+    <p${desc ? ' style="white-space:pre-line"' : ''}>${desc ? esc(desc) : "Обирайте, коли з'являються варіанти (клавіші 1–4 або клік). Під час QTE тисніть вказану клавішу або торкайтеся кнопки. Шукайте хотспоти в кадрі."}</p>
+    <div class="row"><button class="btn primary" id="btnStart">▶ Почати</button></div>`;
+  ov.appendChild(el);
+  $('#btnStart').onclick = () => { if (KIOSK) goFullscreen(); startRun(); };
+  renderMap(); renderState();
+}
+
+function fitCanvas(){ const r = cv.getBoundingClientRect(), d = window.devicePixelRatio || 1; cv.width = Math.round(r.width * d); cv.height = Math.round(r.height * d); }
+new ResizeObserver(fitCanvas).observe(cv);
+function wrapText(text, x, y, maxW, lh){
+  const words = String(text || '').split(' '); let line = '';
+  for (const w of words) {
+    const test = line ? line + ' ' + w : w;
+    if (ctx.measureText(test).width > maxW && line) { ctx.fillText(line, x, y); y += lh; line = w; } else line = test;
+  }
+  if (line) ctx.fillText(line, x, y);
+}
+function drawDemo(now){
+  const W = cv.width, H = cv.height; if (!W) return;
+  const sc = P && S.id && P.scenes[S.id];
+  ctx.fillStyle = (sc && sc.color) || '#1d2130'; ctx.fillRect(0, 0, W, H);
+  const g = ctx.createRadialGradient(W*.3, H*.3, 0, W*.5, H*.5, W*.8);
+  g.addColorStop(0, 'rgba(255,255,255,.10)'); g.addColorStop(1, 'rgba(0,0,0,.55)');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, H);
+  const sx = ((now / 4000) % 1.6 - .3) * W;
+  const sw = ctx.createLinearGradient(sx - W*.15, 0, sx + W*.15, 0);
+  sw.addColorStop(0, 'rgba(255,255,255,0)'); sw.addColorStop(.5, M.playing ? 'rgba(255,255,255,.05)' : 'rgba(255,255,255,0)'); sw.addColorStop(1, 'rgba(255,255,255,0)');
+  ctx.fillStyle = sw; ctx.fillRect(0, 0, W, H);
+  if (!sc) return;
+  const u = W / 100;
+  ctx.fillStyle = 'rgba(235,231,222,.55)'; ctx.font = `500 ${1.5*u}px "IBM Plex Mono", monospace`;
+  ctx.fillText(`ЗАГЛУШКА · ${S.id}${sc.video || sc.image ? ' · очікується ' + (sc.video || sc.image) : ''}`, 4*u, 6*u);
+  ctx.fillStyle = '#ebe7de'; ctx.font = `700 ${4.4*u}px "Unbounded", sans-serif`;
+  wrapText(sc.title || S.id, 4*u, 20*u, 80*u, 5.6*u);
+  ctx.fillStyle = 'rgba(235,231,222,.8)'; ctx.font = `400 ${2.1*u}px "IBM Plex Sans", sans-serif`;
+  wrapText(sc.text, 4*u, 30*u, 58*u, 3.1*u);
+  ctx.fillStyle = 'rgba(0,0,0,.45)'; ctx.fillRect(4*u, H - 9*u, 22*u, 5*u);
+  ctx.fillStyle = '#f0a63a'; ctx.font = `500 ${2*u}px "IBM Plex Mono", monospace`;
+  ctx.fillText(`${fmt(M.time())}.${String(Math.floor((M.time()%1)*24)).padStart(2,'0')}`, 5.2*u, H - 5.6*u);
+}
+
+function mapLayout(){
+  const ids = Object.keys(P.scenes), depth = {}, q = [];
+  if (P.scenes[P.start]) { depth[P.start] = 0; q.push(P.start); }
+  while (q.length) { const id = q.shift(); for (const e of edgesOf(P.scenes[id])) if (P.scenes[e.to] && depth[e.to] == null) { depth[e.to] = depth[id] + 1; q.push(e.to); } }
+  const maxD = Math.max(0, ...Object.values(depth));
+  ids.forEach(id => { if (depth[id] == null) depth[id] = maxD + 1; });
+  const cols = {}; ids.forEach(id => (cols[depth[id]] ||= []).push(id));
+  const NWm = 128, NH = 38, GX = 46, GY = 14, PAD = 14, pos = {};
+  let maxRows = 0;
+  Object.entries(cols).forEach(([d, list]) => { maxRows = Math.max(maxRows, list.length); list.forEach((id, r) => pos[id] = { x: PAD + d*(NWm+GX), y: PAD + r*(NH+GY) }); });
+  const nCols = Object.keys(cols).length;
+  return { pos, NW:NWm, NH, W: PAD*2 + nCols*NWm + (nCols-1)*GX, H: PAD*2 + maxRows*NH + (maxRows-1)*GY };
+}
+function renderMap(){
+  if (!P) return;
+  const { pos, NW:NWm, NH, W, H } = mapLayout(), author = $('#authorMode').checked;
+  let edges = '', nodes = '';
+  for (const [id, sc] of Object.entries(P.scenes)) {
+    const a = pos[id];
+    for (const e of edgesOf(sc)) {
+      const b = pos[e.to]; if (!b) continue;
+      const x1 = a.x + NWm, y1 = a.y + NH/2, x2 = b.x, y2 = b.y + NH/2;
+      const back = x2 <= x1, dx = back ? 60 : Math.max(24, (x2 - x1) / 2);
+      const d = back ? `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2 + (y2>=y1?30:-30)} ${x2},${y2}` : `M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}`;
+      const taken = S.taken.has(id + '>' + e.to);
+      edges += `<path class="edge${taken ? ' taken' : ''}" d="${d}" ${e.kind==='q' ? 'stroke-dasharray="4 3"' : ''} marker-end="url(#ar${taken ? 't' : ''})"/>`;
+    }
+    const isEnd = !sc.end || sc.end.type === 'ending';
+    const cls = ['node', seenEver.has(id) && 'seen', S.visited.has(id) && 'visited click', id === S.id && 'current'].filter(Boolean).join(' ');
+    let label = (author || seenEver.has(id)) ? (sc.title || id) : '???';
+    if (label.length > 18) label = label.slice(0, 17) + '…';
+    nodes += `<g class="${cls}" data-id="${esc(id)}" transform="translate(${a.x},${a.y})"><title>${esc(sc.title || id)} (${esc(id)})</title>
+      <rect width="${NWm}" height="${NH}" rx="${isEnd ? 16 : 5}"/>
+      <text x="${NWm/2}" y="${NH/2 + 4}" text-anchor="middle">${isEnd ? '◆ ' : ''}${esc(label)}</text></g>`;
+  }
+  $('#mapbox').innerHTML = `<svg width="${W}" height="${H}" viewBox="0 0 ${W} ${H}" role="img" aria-label="Карта сцен">
+    <defs><marker id="ar" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#363b50"/></marker>
+    <marker id="art" viewBox="0 0 8 8" refX="7" refY="4" markerWidth="7" markerHeight="7" orient="auto"><path d="M0,0 L8,4 L0,8z" fill="#79b4d6"/></marker></defs>
+    ${edges}${nodes}</svg>`;
+  $('#mapbox').querySelectorAll('.node.click').forEach(n => n.onclick = () => jumpTo(n.dataset.id));
+}
+function renderState(){
+  if (!P) return;
+  const keys = Object.keys(S.vars);
+  $('#vars').innerHTML = keys.length ? keys.map(k => `<dt>${esc(k)}</dt><dd>${esc(JSON.stringify(S.vars[k]))}</dd>`).join('') : '<dt>—</dt><dd>змінних немає</dd>';
+  const ends = Object.entries(P.scenes).filter(([,s]) => !s.end || s.end.type === 'ending');
+  $('#endings').innerHTML = ends.map(([id, s]) => `<span class="chip${endingsFound.has(id) ? ' got' : ''}">${endingsFound.has(id) || $('#authorMode').checked ? esc((s.end && s.end.title) || s.title || id) : '???'}</span>`).join('');
+  let n = 0;
+  $('#log').innerHTML = S.log.map(l => {
+    if (l.back) return `<li><b>↩</b><span>Повернення до «${esc(P.scenes[l.back]?.title || l.back)}»</span></li>`;
+    if (l.hs) return `<li><b>✦</b><span>Знайдено: ${esc(l.hs)}</span></li>`;
+    n++;
+    return `<li><b>${n}</b><span>${esc(P.scenes[l.id]?.title || l.id)}${l.choice ? ` → <em>${esc(l.choice)}</em>` : ''}</span></li>`;
+  }).join('');
+}
+function showIssues(list){
+  $('#issues').innerHTML = list.length ? list.map(i => `<li class="${i.t}">${esc((i.id ? i.id + ': ' : '') + i.m)}</li>`).join('') : '<li class="ok">✓ Помилок не знайдено</li>';
+}
+function selectTab(name){
+  document.querySelectorAll('.tab').forEach(t => t.setAttribute('aria-selected', t.dataset.tab === name));
+  document.querySelectorAll('.pane').forEach(p => p.hidden = p.dataset.pane !== name);
+}
+document.querySelectorAll('.tab').forEach(t => t.onclick = () => selectTab(t.dataset.tab));
+$('#authorMode').onchange = () => { renderMap(); renderState(); };
+function setPauseLabel(){ $('#btnPause').textContent = S.paused ? '▶ Далі' : '❚❚ Пауза'; }
+$('#btnPause').onclick = () => {
+  if (!S.started || S.over) return;
+  S.paused = !S.paused;
+  const blocked = S.active && S.active.kind === 'choice' && S.active.pause;
+  if (S.paused) { M.pause(); AU.pauseAll(); } else { AU.resumeAll(); if (!blocked) M.resume(); }
+  setPauseLabel();
+};
+$('#btnRestart').onclick = () => P && startRun();
+$('#btnEdit').onclick = () => setMode('edit');
+$('#btnMute').onclick = () => { AU.setMuted(!AU.muted); $('#btnMute').textContent = AU.muted ? '♪ Без звуку' : '♪ Звук увімкнено'; };
+$('#btnApply').onclick = () => {
+  let p; try { p = JSON.parse($('#json').value); } catch (e) { showIssues([{ t:'err', m:'JSON не читається: ' + e.message }]); return; }
+  replaceProject(p, true); enterPlay(); startRun();
+};
+
+function enterPlay(from){
+  endBurst(); if (KIOSK) document.documentElement.classList.add('kready');
+  setMode('play');
+  $('#json').value = JSON.stringify(P, null, 2);
+  showIssues(validate(P));
+  if (!P.scenes[P.start]) { clearOv(); showScreen('Помилка', 'Немає стартової сцени', 'Оберіть стартову сцену в редакторі (панель «Проєкт»).', null); return; }
+  if (from) startRun(from); else showStart();
+}
+
+/* ================= EDITOR ================= */
+const NW = 220, IN_Y = 17;
+const cvs = $('#cvs'), world = $('#world'), nodesEl = $('#nodes'), edgesEl = $('#edges'), insp = $('#insp');
+let sel = null, hsSel = null, EX = [], needFit = true, tmpLink = null;
+const view = { x: 40, y: 60, k: 1 };
+
+/* --- undo / autosave --- */
+let undo = [], redo = [], cur = '', inBurst = false, bT = null, saveT = null;
+function pushUndo(s){ undo.push(s); if (undo.length > 150) undo.shift(); redo = []; }
+function endBurst(){ if (inBurst) { inBurst = false; clearTimeout(bT); cur = JSON.stringify(P); } }
+function edit(fn, burst){
+  if (burst) { if (!inBurst) { pushUndo(cur); inBurst = true; } fn(); clearTimeout(bT); bT = setTimeout(endBurst, 800); }
+  else { endBurst(); pushUndo(cur); fn(); cur = JSON.stringify(P); }
+  scheduleSave(); updateUndoUi();
+}
+function undoAct(){ endBurst(); if (!undo.length) return note('Немає дій для скасування.'); redo.push(cur); cur = undo.pop(); P = JSON.parse(cur); afterReplace(); }
+function redoAct(){ endBurst(); if (!redo.length) return; undo.push(cur); cur = redo.pop(); P = JSON.parse(cur); afterReplace(); }
+function afterReplace(){ if (sel && !P.scenes[sel]) sel = null; hsSel = null; renderGraph(); renderInspector(); scheduleSave(); updateUndoUi(); updateTitle(); }
+function updateUndoUi(){ $('#bUndo').disabled = !undo.length; $('#bRedo').disabled = !redo.length; updateTitle(); }
+function scheduleSave(){
+  if (C.reviewing || ZR.open) return;
+  clearTimeout(saveT); saveT = setTimeout(() => { try { localStorage.setItem(KEY_STORE, JSON.stringify(P)); } catch {} }, 400);
+  cloudDirty();
+}
+function updateTitle(){ $('#projName').textContent = `${P.title || 'Без назви'} · ${Object.keys(P.scenes).length} сцен`; }
+
+/* --- model helpers --- */
+function normalize(p){
+  if (!p.scenes || typeof p.scenes !== 'object') p.scenes = {};
+  if (!p.variables || typeof p.variables !== 'object') p.variables = {};
+  if (!p.scenes[p.start]) p.start = Object.keys(p.scenes)[0] || '';
+  return p;
+}
+function exitList(sc){
+  const out = [];
+  (sc.hotspots || []).forEach(h => out.push({ kind:'h', label:'✦ ' + (h.label || 'хотспот'), ref:h, key:'goto' }));
+  (sc.events || []).forEach(e => {
+    const tm = `${+e.at || 0}с`;
+    if (e.type === 'qte') { out.push({ kind:'q', tm, label:'⚡ успіх', ref:e, key:'success' }); out.push({ kind:'q', tm, label:'⚡ провал', ref:e, key:'fail' }); }
+    else (e.options || []).forEach(o => out.push({ kind:'c', tm, label:o.label || 'варіант', ref:o, key:'goto', cond:o.if }));
+  });
+  const e = sc.end || { type:'ending' };
+  if (e.type === 'goto') out.push({ kind:'g', label:'→ далі', ref:e, key:'goto' });
+  else if (e.type === 'choice') (e.options || []).forEach(o => out.push({ kind:'c', label:o.label || 'варіант', ref:o, key:'goto', cond:o.if }));
+  else if (e.type === 'qte') { out.push({ kind:'q', label:'⚡ успіх', ref:e, key:'success' }); out.push({ kind:'q', label:'⚡ провал', ref:e, key:'fail' }); }
+  return out;
+}
+function uniqueId(base){ base = base.replace(/_\d+$/, '') || 'scena'; let n = 1; while (P.scenes[base + '_' + n]) n++; return base + '_' + n; }
+function newScene(pos){
+  const id = uniqueId('scena');
+  P.scenes[id] = { title:'Нова сцена', text:'', duration:6, color: PALETTE[Object.keys(P.scenes).length % PALETTE.length],
+    pos:{ x: Math.round(pos.x / 10) * 10, y: Math.round(pos.y / 10) * 10 }, end:{ type:'ending', title:'' } };
+  if (!P.start) P.start = id;
+  return id;
+}
+function parseVal(s){ s = String(s).trim(); if (s === 'true') return true; if (s === 'false') return false; if (s !== '' && !isNaN(+s)) return +s; return s; }
+function valToStr(v){ return typeof v === 'string' ? v : JSON.stringify(v); }
+function fxToStr(o){
+  if (!o) return '';
+  const parts = [];
+  for (const [k, v] of Object.entries(o.set || {})) parts.push(`${k}=${valToStr(v)}`);
+  for (const [k, v] of Object.entries(o.add || {})) parts.push(v < 0 ? `${k}-${-v}` : `${k}+${v}`);
+  return parts.join(', ');
+}
+function strToFx(s, o){
+  delete o.set; delete o.add;
+  String(s).split(/[,;]/).map(t => t.trim()).filter(Boolean).forEach(t => {
+    let m;
+    if ((m = t.match(/^([^\s=+\-!]+)\s*([+-])\s*(\d+(?:\.\d+)?)$/))) (o.add ||= {})[m[1]] = (m[2] === '-' ? -1 : 1) * +m[3];
+    else if ((m = t.match(/^([^\s=]+)\s*=\s*(.*)$/))) (o.set ||= {})[m[1]] = parseVal(m[2]);
+    else if ((m = t.match(/^!(\S+)$/))) (o.set ||= {})[m[1]] = false;
+    else (o.set ||= {})[t] = true;
+  });
+  for (const [k, v] of Object.entries(o.set || {})) if (!(k in P.variables)) P.variables[k] = typeof v === 'boolean' ? false : typeof v === 'number' ? 0 : '';
+  for (const k of Object.keys(o.add || {})) if (!(k in P.variables)) P.variables[k] = 0;
+}
+function getPath(p){ let o = P; for (const k of p) { if (o == null) return undefined; o = o[k]; } return o; }
+function setPath(path, val, t){
+  let o = P;
+  for (let i = 0; i < path.length - 1; i++) { const k = path[i]; if (o[k] == null) o[k] = typeof path[i+1] === 'number' ? [] : {}; o = o[k]; }
+  const k = path[path.length - 1];
+  if (t === 'fx') { if (o[k] == null) o[k] = {}; strToFx(val, o[k]); if (k === 'onFail' && !Object.keys(o[k]).length) delete o[k]; return; }
+  if (t === 'num' || t === 'numsel') { if (val === '' || val == null || isNaN(+val)) delete o[k]; else o[k] = +val; return; }
+  if (t === 'bool') { o[k] = !!val; return; }
+  if (t === 'musicoff') { if (val) o[k] = false; else delete o[k]; return; }
+  if (t === 'key') { o[k] = val; o.keyLabel = KEYS[val] || val; return; }
+  if (val === '') { if (k === 'goto' && o.type === 'goto') o[k] = ''; else delete o[k]; } else o[k] = val;
+}
+
+/* --- view --- */
+function applyView(){
+  world.style.transform = `translate(${view.x}px,${view.y}px) scale(${view.k})`;
+  const g = 24 * view.k; cvs.style.backgroundSize = `${g}px ${g}px`; cvs.style.backgroundPosition = `${view.x}px ${view.y}px`;
+  $('#zoomLbl').textContent = Math.round(view.k * 100) + '%';
+}
+function toWorld(cx, cy){ const r = cvs.getBoundingClientRect(); return { x:(cx - r.left - view.x) / view.k, y:(cy - r.top - view.y) / view.k }; }
+function zoomAt(k2, mx, my){ k2 = clamp(k2, 0.2, 2); view.x = mx - (mx - view.x) * k2 / view.k; view.y = my - (my - view.y) * k2 / view.k; view.k = k2; applyView(); }
+function fit(){
+  const r = cvs.getBoundingClientRect(); if (!r.width) { needFit = true; return; } needFit = false;
+  let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+  nodesEl.querySelectorAll('.gnode').forEach(n => { const s = P.scenes[n.dataset.id]; if (!s) return; x0 = Math.min(x0, s.pos.x); y0 = Math.min(y0, s.pos.y); x1 = Math.max(x1, s.pos.x + NW); y1 = Math.max(y1, s.pos.y + n.offsetHeight); });
+  if (x0 === Infinity) return;
+  const k = clamp(Math.min((r.width - 80) / (x1 - x0), (r.height - 130) / (y1 - y0)), 0.25, 1.1);
+  view.k = k; view.x = (r.width - (x1 - x0) * k) / 2 - x0 * k; view.y = 56 + (r.height - 96 - (y1 - y0) * k) / 2 - y0 * k;
+  applyView();
+}
+function centerOn(id){
+  const s = P.scenes[id], r = cvs.getBoundingClientRect(); if (!s || !r.width) return;
+  view.x = r.width / 2 - (s.pos.x + NW / 2) * view.k; view.y = r.height / 2 - (s.pos.y + 50) * view.k; applyView();
+}
+function autoLayout(){
+  const ids = Object.keys(P.scenes), depth = {}, order = [], q = [];
+  if (P.scenes[P.start]) { depth[P.start] = 0; q.push(P.start); }
+  while (q.length) { const id = q.shift(); order.push(id); for (const e of edgesOf(P.scenes[id])) if (P.scenes[e.to] && depth[e.to] == null) { depth[e.to] = depth[id] + 1; q.push(e.to); } }
+  const maxD = Math.max(0, ...Object.values(depth));
+  ids.forEach(id => { if (depth[id] == null) { depth[id] = maxD + 1; order.push(id); } });
+  const cols = {}; order.forEach(id => (cols[depth[id]] ||= []).push(id));
+  const hOf = id => { const el = nodesEl.querySelector(`.gnode[data-id="${CSS.escape(id)}"]`); const sc = P.scenes[id];
+    return (el && el.offsetHeight) || (58 + 25 * exitList(sc).length + ((sc.end || { type:'ending' }).type === 'ending' ? 30 : 0)); };
+  const colH = {}; for (const [d, list] of Object.entries(cols)) colH[d] = list.reduce((s, id) => s + hOf(id) + 36, -36);
+  const maxH = Math.max(...Object.values(colH));
+  for (const [d, list] of Object.entries(cols)) { let y = 40 + (maxH - colH[d]) / 2; list.forEach(id => { P.scenes[id].pos = { x: 40 + d * 290, y: Math.round(y) }; y += hOf(id) + 36; }); }
+}
+function ensureLayout(){
+  const all = Object.values(P.scenes);
+  if (all.every(s => !s.pos)) { autoLayout(); renderGraph(); autoLayout(); return; }
+  const mx = Math.max(0, ...all.filter(s => s.pos).map(s => s.pos.x)); let y = 40;
+  all.forEach(s => { if (!s.pos) { s.pos = { x: mx + 290, y }; y += 150; } });
+}
+
+/* --- graph render --- */
+function renderGraph(){
+  const byId = {}; validate(P).forEach(i => { if (i.id) (byId[i.id] ||= []).push(i); });
+  EX = []; let html = '';
+  for (const [id, sc] of Object.entries(P.scenes)) {
+    const p = sc.pos || { x:0, y:0 };
+    const isEnd = !sc.end || sc.end.type === 'ending';
+    const errs = byId[id] || [], nErr = errs.filter(i => i.t === 'err').length;
+    const miss = f => files.size && !files.has(f) ? ' class="miss"' : '';
+    const turl = sc.video ? files.get(sc.video) : sc.image ? files.get(sc.image) : null;
+    const tsrc = sc.video ? (turl && posters.get(turl)) : turl;
+    const thumb = tsrc ? `<img class="gthumb" src="${tsrc}" alt="" draggable="false">` : '';
+    const media = sc.video ? `<span${miss(sc.video)}>▣ ${esc(sc.video)}</span>` : sc.image ? `<span${miss(sc.image)}>▨ ${esc(sc.image)}</span>` : `<span>заглушка · ${sc.duration ? sc.duration + ' с' : (sc.voice ? 'за голосом' : '6 с')}</span>`;
+    const aud = (sc.voice ? `<span${miss(sc.voice)}>голос · ${esc(sc.voice)}</span>` : '') + (sc.music === false ? '<span>♪ стоп</span>' : sc.music ? `<span${miss(sc.music)}>♪ ${esc(sc.music)}</span>` : '');
+    const rows = exitList(sc).map(x => {
+      const i = EX.push({ ...x, sid:id }) - 1, to = x.ref[x.key], on = !!(to && P.scenes[to]);
+      return `<div class="gx k-${x.kind}">${x.tm ? `<span class="tm">${x.tm}</span>` : ''}<span class="lbl">${esc(x.label)}</span>${x.cond ? `<span class="lock" title="Умова: ${esc(x.cond)}">умова</span>` : ''}<span class="port${on ? ' on' : ''}" data-ex="${i}" title="Тягніть на сцену. Подвійний клік — від'єднати"></span></div>`;
+    }).join('');
+    html += `<div class="gnode${id === sel ? ' sel' : ''}${nErr ? ' err' : ''}" data-id="${esc(id)}" style="left:${p.x}px;top:${p.y}px" tabindex="0">
+      <span class="gin"></span>${thumb}
+      <div class="gh"><span class="gsw" style="background:${esc(sc.color || '#2d3a5c')}"></span><span class="gt">${esc(sc.title || id)}</span>${P.start === id ? '<span class="gb">СТАРТ</span>' : ''}${errs.length ? `<span class="gb ${nErr ? 'bad' : 'warn'}" title="${esc(errs.map(e => e.m).join('\n'))}">!${errs.length}</span>` : ''}</div>
+      <div class="gm"><span>${esc(id)}</span>${media}</div>${aud ? `<div class="gm gaud">${aud}</div>` : ''}
+      ${rows}${isEnd ? `<div class="gend">◆ Фінал${sc.end && sc.end.title ? ': ' + esc(sc.end.title) : ''}</div>` : ''}</div>`;
+  }
+  nodesEl.innerHTML = html;
+  nodesEl.querySelectorAll('.port').forEach(pt => { const r = pt.parentElement; EX[+pt.dataset.ex].oy = r.offsetTop + r.offsetHeight / 2; });
+  renderEdges();
+}
+function edgePath(x1, y1, x2, y2, kind, cls){
+  const dx = x2 > x1 + 20 ? Math.max(40, (x2 - x1) / 2) : 90 + Math.min(220, (x1 - x2) / 3);
+  return `<path class="e e-${kind}${cls}" d="M${x1},${y1} C${x1+dx},${y1} ${x2-dx},${y2} ${x2},${y2}"/><path class="ah a-${kind}${cls}" d="M${x2-9},${y2-5} L${x2},${y2} L${x2-9},${y2+5}z"/>`;
+}
+function renderEdges(){
+  let s = '';
+  EX.forEach(ex => {
+    const to = ex.ref[ex.key], b = to && P.scenes[to]; if (!b) return;
+    const a = P.scenes[ex.sid].pos; if (!a || !b.pos) return;
+    const cls = sel ? ((sel === ex.sid || sel === to) ? ' hl' : ' dim') : '';
+    s += edgePath(a.x + NW + 1, a.y + ex.oy, b.pos.x, b.pos.y + IN_Y, ex.kind, cls);
+  });
+  if (tmpLink) s += `<path class="e tmp" d="M${tmpLink.x1},${tmpLink.y1} C${tmpLink.x1+60},${tmpLink.y1} ${tmpLink.x2-60},${tmpLink.y2} ${tmpLink.x2},${tmpLink.y2}"/>`;
+  edgesEl.innerHTML = s;
+}
+function select(id){
+  sel = id && P.scenes[id] ? id : null; hsSel = null;
+  nodesEl.querySelectorAll('.gnode').forEach(n => n.classList.toggle('sel', n.dataset.id === sel));
+  renderEdges(); renderInspector();
+}
+
+/* --- canvas interaction --- */
+let drag = null;
+cvs.addEventListener('pointerdown', e => {
+  if (e.pointerType === 'mouse' && e.button !== 0) return;
+  if (e.target.closest('.ed-tools')) return;
+  const port = e.target.closest('.port'), node = e.target.closest('.gnode');
+  cvs.setPointerCapture(e.pointerId);
+  if (port) { drag = { t:'link', ex: EX[+port.dataset.ex], sx:e.clientX, sy:e.clientY, moved:false }; return; }
+  if (node) {
+    const id = node.dataset.id; if (sel !== id) select(id);
+    const el = nodesEl.querySelector(`.gnode[data-id="${CSS.escape(id)}"]`);
+    drag = { t:'node', id, el, sx:e.clientX, sy:e.clientY, ox:P.scenes[id].pos.x, oy:P.scenes[id].pos.y, moved:false }; return;
+  }
+  drag = { t:'pan', sx:e.clientX, sy:e.clientY, vx:view.x, vy:view.y, moved:false };
+});
+cvs.addEventListener('pointermove', e => {
+  if (!drag) return;
+  const dx = e.clientX - drag.sx, dy = e.clientY - drag.sy;
+  if (!drag.moved && Math.hypot(dx, dy) < 4) return;
+  if (!drag.moved) { drag.moved = true; if (drag.t === 'node') { endBurst(); pushUndo(cur); } }
+  if (drag.t === 'pan') { view.x = drag.vx + dx; view.y = drag.vy + dy; applyView(); }
+  else if (drag.t === 'node') {
+    const p = P.scenes[drag.id].pos; p.x = drag.ox + dx / view.k; p.y = drag.oy + dy / view.k;
+    drag.el.style.left = p.x + 'px'; drag.el.style.top = p.y + 'px'; renderEdges();
+  } else if (drag.t === 'link') {
+    const a = P.scenes[drag.ex.sid].pos, w = toWorld(e.clientX, e.clientY);
+    tmpLink = { x1: a.x + NW + 1, y1: a.y + drag.ex.oy, x2: w.x, y2: w.y };
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.gnode');
+    nodesEl.querySelectorAll('.gnode.drop').forEach(n => n !== over && n.classList.remove('drop'));
+    if (over) over.classList.add('drop');
+    renderEdges();
+  }
+});
+cvs.addEventListener('pointerup', e => {
+  const d = drag; drag = null; if (!d) return;
+  if (d.t === 'node' && d.moved) {
+    const p = P.scenes[d.id].pos; p.x = Math.round(p.x / 10) * 10; p.y = Math.round(p.y / 10) * 10;
+    d.el.style.left = p.x + 'px'; d.el.style.top = p.y + 'px';
+    cur = JSON.stringify(P); scheduleSave(); updateUndoUi(); renderEdges();
+  } else if (d.t === 'pan' && !d.moved) { if (sel) select(null); }
+  else if (d.t === 'link') {
+    tmpLink = null; nodesEl.querySelectorAll('.gnode.drop').forEach(n => n.classList.remove('drop'));
+    if (!d.moved) { if (sel !== d.ex.sid) select(d.ex.sid); else renderEdges(); return; }
+    const over = document.elementFromPoint(e.clientX, e.clientY)?.closest('.gnode');
+    const r = cvs.getBoundingClientRect();
+    if (over) edit(() => { d.ex.ref[d.ex.key] = over.dataset.id; }, false);
+    else if (e.clientX > r.left && e.clientX < r.right && e.clientY > r.top && e.clientY < r.bottom) {
+      const w = toWorld(e.clientX, e.clientY);
+      edit(() => { const nid = newScene({ x: w.x, y: w.y - IN_Y }); d.ex.ref[d.ex.key] = nid; sel = nid; hsSel = null; }, false);
+      note('Створено нову сцену. Назвіть її в панелі праворуч.');
+    } else { renderEdges(); return; }
+    renderGraph(); renderInspector();
+  }
+});
+cvs.addEventListener('pointercancel', () => { drag = null; tmpLink = null; renderEdges(); });
+cvs.addEventListener('dblclick', e => {
+  if (e.target.closest('.ed-tools')) return;
+  const port = e.target.closest('.port');
+  if (port) { const ex = EX[+port.dataset.ex]; edit(() => { if (ex.key === 'goto' && ex.ref.type === 'goto') ex.ref.goto = ''; else delete ex.ref[ex.key]; }, false); renderGraph(); renderInspector(); note('Зв\'язок видалено.'); return; }
+  if (e.target.closest('.gnode')) { insp.querySelector('[data-f="title"]')?.focus(); return; }
+  const w = toWorld(e.clientX, e.clientY);
+  edit(() => { sel = newScene({ x: w.x - NW / 2, y: w.y - 20 }); hsSel = null; }, false);
+  renderGraph(); renderInspector();
+});
+cvs.addEventListener('wheel', e => {
+  e.preventDefault(); const r = cvs.getBoundingClientRect();
+  zoomAt(view.k * Math.exp(-e.deltaY * (e.ctrlKey ? 0.01 : 0.0015)), e.clientX - r.left, e.clientY - r.top);
+}, { passive:false });
+
+$('#bAdd').onclick = () => {
+  const r = cvs.getBoundingClientRect(), w = toWorld(r.left + r.width / 2, r.top + r.height / 2);
+  edit(() => { sel = newScene({ x: w.x - NW / 2, y: w.y - 40 }); hsSel = null; }, false);
+  renderGraph(); renderInspector();
+};
+$('#bLayout').onclick = () => { edit(autoLayout, false); renderGraph(); fit(); };
+$('#bFit').onclick = fit;
+$('#bZi').onclick = () => { const r = cvs.getBoundingClientRect(); zoomAt(view.k * 1.2, r.width / 2, r.height / 2); };
+$('#bZo').onclick = () => { const r = cvs.getBoundingClientRect(); zoomAt(view.k / 1.2, r.width / 2, r.height / 2); };
+$('#bUndo').onclick = undoAct;
+$('#bRedo').onclick = redoAct;
+$('#bPlayStart').onclick = () => enterPlay();
+
+function renameScene(old, neu){
+  neu = String(neu).trim().replace(/\s+/g, '_').replace(/[^\wЀ-ӿ-]/g, '');
+  if (!neu || neu === old) return renderInspector();
+  if (P.scenes[neu]) { note(`Сцена з ID «${neu}» вже існує.`); return renderInspector(); }
+  edit(() => {
+    const ns = {}; for (const [k, v] of Object.entries(P.scenes)) ns[k === old ? neu : k] = v; P.scenes = ns;
+    for (const sc of Object.values(P.scenes)) exitList(sc).forEach(x => { if (x.ref[x.key] === old) x.ref[x.key] = neu; });
+    if (P.start === old) P.start = neu; sel = neu;
+  }, false);
+  renderGraph(); renderInspector();
+}
+function deleteScene(id){
+  if (Object.keys(P.scenes).length <= 1) return note('Це остання сцена, її не можна видалити.');
+  edit(() => {
+    delete P.scenes[id];
+    for (const sc of Object.values(P.scenes)) exitList(sc).forEach(x => { if (x.ref[x.key] === id) { if (x.key === 'goto' && x.ref.type === 'goto') x.ref.goto = ''; else delete x.ref[x.key]; } });
+    if (P.start === id) P.start = Object.keys(P.scenes)[0];
+    sel = null;
+  }, false);
+  renderGraph(); renderInspector(); note('Сцену видалено. Ctrl+Z повертає.');
+}
+function dupScene(id){
+  edit(() => {
+    const c = clone(P.scenes[id]), nid = uniqueId(id);
+    c.title = (c.title || id) + ' (копія)'; c.pos = { x: c.pos.x + 30, y: c.pos.y + 30 };
+    P.scenes[nid] = c; sel = nid;
+  }, false);
+  renderGraph(); renderInspector();
+}
+function setEndType(t){
+  edit(() => {
+    const sc = P.scenes[sel], old = sc.end || {};
+    const firstGo = old.goto || (old.options || []).find(o => o.goto)?.goto || old.success || '';
+    sc.end = t === 'goto' ? { type:'goto', goto:firstGo }
+      : t === 'choice' ? { type:'choice', prompt: old.prompt && old.type === 'choice' ? old.prompt : 'Що робиш?', options: old.options || [ firstGo ? { label:'Варіант 1', goto:firstGo } : { label:'Варіант 1' }, { label:'Варіант 2' } ] }
+      : t === 'qte' ? { type:'qte', prompt:'Швидше!', key:'Space', keyLabel:'ПРОБІЛ', window:2, ...(firstGo ? { success:firstGo } : {}) }
+      : { type:'ending', title: old.type === 'ending' ? (old.title || '') : (sc.title || ''), text: old.text || '' };
+  }, false);
+  renderGraph(); renderInspector();
+}
+
+/* --- inspector --- */
+const PA = p => esc(JSON.stringify(p));
+const F = (label, inner, hint) => `<label class="f"><span>${label}</span>${inner}${hint ? `<small>${hint}</small>` : ''}</label>`;
+const iText = (p, v, ph = '', extra = '') => `<input data-p="${PA(p)}" data-t="str" value="${esc(v ?? '')}" placeholder="${esc(ph)}" ${extra}>`;
+const iNum = (p, v, ph = '', step = '0.1') => `<input type="number" inputmode="decimal" step="${step}" min="0" data-p="${PA(p)}" data-t="num" value="${v ?? ''}" placeholder="${esc(ph)}">`;
+const iArea = (p, v, ph = '') => `<textarea data-p="${PA(p)}" data-t="str" placeholder="${esc(ph)}">${esc(v ?? '')}</textarea>`;
+const iMedia = (p, v, ph, list) => `<input list="${list}" data-p="${PA(p)}" data-t="str" value="${esc(v ?? '')}" placeholder="${esc(ph)}">`;
+const iFx = (p, o) => `<input data-p="${PA(p)}" data-t="fx" value="${esc(fxToStr(o))}" placeholder="telefon=true, vidvaha+1">`;
+const iCheck = (p, v, label) => `<label class="f chk"><input type="checkbox" data-p="${PA(p)}" data-t="bool"${v ? ' checked' : ''}><span>${label}</span></label>`;
+function iGoto(p, v, none){
+  const opts = Object.entries(P.scenes).map(([id, s]) => `<option value="${esc(id)}"${id === v ? ' selected' : ''}>${esc(s.title || id)} · ${esc(id)}</option>`).join('');
+  const bad = v && !P.scenes[v] ? `<option value="${esc(v)}" selected>⚠ ${esc(v)} (не існує)</option>` : '';
+  return `<select data-p="${PA(p)}" data-t="goto"><option value=""${!v ? ' selected' : ''}>${none}</option>${bad}${opts}<option value="__new">+ Нова сцена…</option></select>`;
+}
+const iKey = (p, v) => `<select data-p="${PA(p)}" data-t="key">${Object.entries(KEYS).map(([k, l]) => `<option value="${k}"${k === (v || 'Space') ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+const iDefault = (p, v, opts) => `<select data-p="${PA(p)}" data-t="numsel"><option value="">${'нічого не обирати'}</option>${(opts || []).map((o, i) => `<option value="${i}"${+v === i && v != null ? ' selected' : ''}>${i + 1}. ${esc(o.label || 'варіант')}</option>`).join('')}</select>`;
+
+function optionsEditor(opts, p, none){
+  return (opts || []).map((o, i) => `<div class="card"><button class="x" data-act="delAt" data-p="${PA(p)}" data-i="${i}" aria-label="Видалити варіант">×</button>
+    ${F(`Варіант ${i + 1}`, iText([...p, i, 'label'], o.label, 'Текст кнопки'))}
+    ${F('Веде до', iGoto([...p, i, 'goto'], o.goto, none))}
+    <div class="grid2">${F('Умова показу', iText([...p, i, 'if'], o.if, 'telefon, vidvaha>=2'))}${F('Ефект', iFx([...p, i], o))}</div></div>`).join('')
+    + `<div class="row"><button class="btn small" data-act="addOpt" data-p="${PA(p)}">+ Варіант</button></div>`;
+}
+function qteFields(ev, p, isEnd){
+  const none = isEnd ? '— фінал —' : '— сцена триває —';
+  return F('Підказка на екрані', iText([...p, 'prompt'], ev.prompt, 'Швидше!'))
+    + `<div class="grid2">${F('Клавіша', iKey([...p, 'key'], ev.key))}${F('Натискань', iNum([...p, 'presses'], ev.presses, '1', '1'), 'Більше 1 — треба «товкти»')}</div>`
+    + `<div class="grid2">${F('Час на реакцію, с', iNum([...p, 'window'], ev.window, '2', '0.1'))}${isEnd ? '' : iCheck([...p, 'pause'], !!ev.pause, 'Зупиняти відео')}</div>`
+    + `<div class="grid2">${F('Успіх →', iGoto([...p, 'success'], ev.success, none))}${F('Провал →', iGoto([...p, 'fail'], ev.fail, none))}</div>`
+    + `<div class="grid2">${F('Ефект при успіху', iFx(p, ev))}${F('Ефект при провалі', iFx([...p, 'onFail'], ev.onFail))}</div>`;
+}
+function endEditor(e, p){
+  if (e.type === 'goto') return F('Наступна сцена', iGoto([...p, 'goto'], e.goto, '— не з\'єднано —'));
+  if (e.type === 'choice') return F('Питання', iText([...p, 'prompt'], e.prompt, 'Що робиш?'))
+    + `<div class="grid2">${F('Таймер, с', iNum([...p, 'timeout'], e.timeout, 'без таймера', '1'))}${F('Коли час вийшов', iDefault([...p, 'default'], e.default, e.options))}</div>`
+    + F('Відео під час вибору', iMedia([...p, 'loop'], e.loop, 'wait_loop.mp4', 'listVideo'), 'Крутиться по колу, поки глядач обирає')
+    + optionsEditor(e.options, [...p, 'options'], '— фінал —');
+  if (e.type === 'qte') return qteFields(e, p, true);
+  return F('Назва фіналу', iText([...p, 'title'], e.title, 'Напр. «Мокрі ноги»')) + F('Текст фіналу', iArea([...p, 'text'], e.text, 'Що відбулося з героєм'));
+}
+function eventEditor(ev, p, i){
+  const head = `<div class="card-h">${ev.type === 'qte' ? 'QTE' : 'Вибір'} <span class="tm">на ${+ev.at || 0} с</span></div><button class="x" data-act="delAt" data-p="${PA(p.slice(0, -1))}" data-i="${i}" aria-label="Видалити подію">×</button>`;
+  const at = F('Секунда появи', iNum([...p, 'at'], ev.at, '0', '0.5'));
+  if (ev.type === 'qte') return `<div class="card">${head}${at}${qteFields(ev, p, false)}</div>`;
+  return `<div class="card">${head}<div class="grid2">${at}${F('Таймер, с', iNum([...p, 'timeout'], ev.timeout, 'без таймера', '1'))}</div>
+    ${F('Питання', iText([...p, 'prompt'], ev.prompt, 'Хтось у кущах!'))}
+    <div class="grid2">${F('Коли час вийшов', iDefault([...p, 'default'], ev.default, ev.options))}${iCheck([...p, 'pause'], ev.pause !== false, 'Зупиняти відео')}</div>
+    ${optionsEditor(ev.options, [...p, 'options'], '— сцена триває —')}</div>`;
+}
+function hotspotSection(sc, b){
+  const hs = sc.hotspots || [];
+  if (hsSel != null && !hs[hsSel]) hsSel = null;
+  if (hsSel == null && hs.length) hsSel = 0;
+  const url = sc.video && files.get(sc.video), iurl = !url && sc.image && files.get(sc.image);
+  const box = `<div class="hsbox" id="hsbox" style="--c:${esc(sc.color || '#2d3a5c')}">${url ? `<video id="hsvid" muted playsinline preload="auto" src="${url}"></video>` : iurl ? `<img src="${iurl}" alt="">` : `<span class="hsph">${esc(sc.title || '')}</span>`}
+    ${hs.map((h, i) => `<div class="hsr${i === hsSel ? ' on' : ''}" data-i="${i}" style="left:${h.x * 100}%;top:${h.y * 100}%;width:${h.w * 100}%;height:${h.h * 100}%"><span>${esc(h.label || i + 1)}</span></div>`).join('')}</div>`;
+  const list = hs.map((h, i) => `<div class="card${i === hsSel ? ' on' : ''}"><button class="x" data-act="delAt" data-p="${PA([...b, 'hotspots'])}" data-i="${i}" aria-label="Видалити хотспот">×</button>
+    <div class="row"><button class="btn small" data-act="selHs" data-v="${i}"${i === hsSel ? ' disabled' : ''}>${i === hsSel ? 'Редагується на кадрі' : 'Обрати на кадрі'}</button><span class="coords">x ${h.x} · y ${h.y} · ${h.w}×${h.h}</span></div>
+    ${F('Підпис', iText([...b, 'hotspots', i, 'label'], h.label, 'Телефон на лавці'))}
+    <div class="grid2">${F('З секунди', iNum([...b, 'hotspots', i, 'from'], h.from, '0', '0.5'))}${F('До секунди', iNum([...b, 'hotspots', i, 'to'], h.to, 'до кінця', '0.5'))}</div>
+    <div class="grid2">${F('Умова показу', iText([...b, 'hotspots', i, 'if'], h.if, '!telefon'))}${F('Ефект', iFx([...b, 'hotspots', i], h))}</div>
+    ${F('Перехід після кліку', iGoto([...b, 'hotspots', i, 'goto'], h.goto, '— лише ефект —'))}
+    ${iCheck([...b, 'hotspots', i, 'hidden'], h.hidden, 'Прихована зона: без підсвітки, обведення з’являється лише при наведенні миші')}</div>`).join('');
+  return `<section class="sec"><h4>Хотспоти</h4>${box}<p class="hint">${hs.length ? 'Тягніть по кадру, щоб окреслити зону вибраного хотспота, або перетягніть саму зону.' : 'Окресліть мишкою зону на кадрі, щоб створити хотспот.'}${url ? ' Кадр показано на секунді «з».' : ''}</p>${list}
+    <div class="row"><button class="btn small" data-act="addHs">+ Хотспот</button></div></section>`;
+}
+function projectInspector(){
+  const iss = validate(P);
+  const scenes = Object.values(P.scenes);
+  const ends = scenes.filter(s => !s.end || s.end.type === 'ending').length;
+  const choices = scenes.reduce((n, s) => n + (s.end?.type === 'choice' ? 1 : 0) + (s.events || []).length, 0);
+  const vars = Object.entries(P.variables || {});
+  return `<h3 class="ititle">Проєкт</h3>
+    ${F('Назва історії', iText(['title'], P.title, 'Без назви'))}
+    <section class="sec"><h4>Початковий екран</h4>
+      ${F('Автор', iText(['author'], P.author, 'Прізвище та ім’я'))}
+      ${F('Опис', iArea(['description'], P.description, 'Про що ця історія. Показується на кнопці «Почати» й у галереї'))}
+      ${F('Фонова картинка', iMedia(['cover'], P.cover, 'cover.jpg', 'listImage'), 'Також стане обкладинкою картки в галереї. Якщо порожньо, галерея візьме кадр першої сцени')}
+    </section>
+    ${F('Музика з початку історії', iMedia(['music'], P.music, 'theme.mp3', 'listAudio'), 'Сцени можуть змінити або вимкнути її')}
+    ${F('Стартова сцена', `<select data-p='["start"]' data-t="str">${Object.entries(P.scenes).map(([id, s]) => `<option value="${esc(id)}"${id === P.start ? ' selected' : ''}>${esc(s.title || id)} · ${esc(id)}</option>`).join('')}</select>`)}
+    <div class="stats"><div class="stat"><b>${scenes.length}</b><span>сцен</span></div><div class="stat"><b>${ends}</b><span>фіналів</span></div><div class="stat"><b>${choices}</b><span>розвилок і QTE</span></div></div>
+    <div class="row"><button class="btn small primary" data-act="testStart">▶ Тест з початку</button><button class="btn small" data-act="layout">Упорядкувати схему</button></div>
+    <section class="sec"><h4>Змінні</h4>
+      ${vars.map(([k, v]) => `<div class="vrow"><input data-var-name="${esc(k)}" value="${esc(k)}" aria-label="Назва змінної" spellcheck="false"><input data-var-val="${esc(k)}" value="${esc(valToStr(v))}" aria-label="Початкове значення" spellcheck="false"><button class="x" data-act="delVar" data-v="${esc(k)}" aria-label="Видалити змінну">×</button></div>`).join('') || '<p class="hint">Змінних поки немає.</p>'}
+      <div class="row"><button class="btn small" data-act="addVar">+ Змінна</button></div>
+      <p class="hint">Значення: true / false, число або текст. В умовах пишіть <code>telefon</code>, <code>!telefon</code>, <code>vidvaha>=2</code>; в ефектах — <code>telefon=true, vidvaha+1</code>. Нові змінні з ефектів додаються сюди самі.</p>
+    </section>
+    <section class="sec"><h4>Перевірка</h4>
+      <ul class="issues">${iss.length ? iss.map(i => `<li class="${i.t}"${i.id ? ` data-act="go" data-v="${esc(i.id)}"` : ''}>${esc((i.id ? (P.scenes[i.id]?.title || i.id) + ': ' : '') + i.m)}</li>`).join('') : '<li class="ok">✓ Помилок не знайдено</li>'}</ul>
+    </section>
+    <section class="sec"><h4>Керування</h4>
+      <ul class="keys">
+        <li>Подвійний клік по полю — нова сцена</li>
+        <li>Тягніть кружечок виходу на сцену; у порожнє місце — створить нову</li>
+        <li>Подвійний клік по кружечку — від'єднати</li>
+        <li>Відео, фото й аудіо кидайте на сцену або в поле; на порожнє місце — створить сцени; аудіо з <kbd>Shift</kbd> — музика</li>
+        <li>«Вивантажити ZIP» пакує проєкт і всі його файли для здачі; «Відкрити ZIP» повертає його в редактор</li>
+        <li>Тягніть поле — рух схеми, колесо — масштаб</li>
+        <li><kbd>Del</kbd> видалити сцену · <kbd>Ctrl</kbd>+<kbd>D</kbd> дублювати · <kbd>F</kbd> вмістити</li>
+        <li><kbd>Ctrl</kbd>+<kbd>Z</kbd> скасувати · <kbd>Ctrl</kbd>+<kbd>Shift</kbd>+<kbd>Z</kbd> повторити</li>
+      </ul>
+    </section>`;
+}
+function renderInspector(){
+  if (!sel || !P.scenes[sel]) { insp.innerHTML = projectInspector(); return; }
+  const sc = P.scenes[sel], b = ['scenes', sel], e = sc.end || { type:'ending' };
+  const names = { goto:'Перехід', choice:'Вибір', qte:'QTE', ending:'Фінал' };
+  insp.innerHTML = `<div class="ihead"><input class="sid" data-sid="${esc(sel)}" value="${esc(sel)}" aria-label="ID сцени" spellcheck="false" title="ID сцени: латиниця або кирилиця, без пробілів">
+      <div class="row"><button class="btn small primary" data-act="test">▶ Тест звідси</button>
+      ${P.start !== sel ? '<button class="btn small" data-act="setStart">Зробити стартовою</button>' : '<span class="gb">СТАРТ</span>'}
+      <button class="btn small" data-act="dup">Дублювати</button><button class="btn small danger" data-act="del">Видалити</button></div></div>
+    ${F('Назва', iText([...b, 'title'], sc.title, 'Назва сцени', 'data-f="title"'))}
+    ${F('Опис', iArea([...b, 'text'], sc.text, 'Що відбувається в кадрі'), 'Показується на заглушці, поки відео немає')}
+    <section class="sec"><h4>Репліки (плашка з текстом)</h4>
+      ${(sc.lines || []).map((l, i) => `<div class="card"><button class="x" data-act="delAt" data-p="${PA([...b, 'lines'])}" data-i="${i}" aria-label="Видалити репліку">×</button>
+        <div class="grid2">${F('Хто говорить', iText([...b, 'lines', i, 'name'], l.name, 'Оповідач'))}${F('З секунди', iNum([...b, 'lines', i, 'at'], l.at, 'авто', '0.5'))}</div>
+        ${F('Текст', iArea([...b, 'lines', i, 'text'], l.text, 'Що показати на плашці'))}</div>`).join('')}
+      <div class="row"><button class="btn small" data-act="addLine">+ Репліка</button></div>
+      <p class="hint">Репліки змінюються самі: «З секунди» задає час появи, а якщо порожньо — через час на читання після попередньої. Глядач може перейти далі кліком по кадру, пробілом, Enter або →. Без тривалості сцени вона триває рівно стільки, скільки йдуть репліки.</p>
+    </section>
+    <div class="grid2">${F('Відео', iMedia([...b, 'video'], sc.video, '01.mp4', 'listVideo'))}${F('Зображення', iMedia([...b, 'image'], sc.image, 'kadr01.jpg', 'listImage'), 'Показується, якщо відео немає')}</div>
+    <div class="grid2">${F('Тривалість, с', iNum([...b, 'duration'], sc.duration, sc.voice ? 'за голосом' : '6', '0.5'), 'Для зображення й заглушки')}${iCheck([...b, 'kenburns'], !!sc.kenburns, 'Повільний наїзд камери на зображення')}</div>
+    ${F('Колір заглушки', `<input type="color" data-p="${PA([...b, 'color'])}" data-t="str" value="${esc(sc.color || '#2d3a5c')}">`)}
+    <section class="sec"><h4>Звук</h4>
+      ${F('Закадровий голос', iMedia([...b, 'voice'], sc.voice, 'golos01.mp3', 'listAudio'), 'Звучить один раз від початку сцени. Якщо тривалість не вказана, сцена триває, поки звучить голос.')}
+      ${F('Фонова музика', `<input list="listAudio" data-p="${PA([...b, 'music'])}" data-t="str" value="${esc(typeof sc.music === 'string' ? sc.music : '')}" placeholder="${sc.music === false ? 'вимкнено' : 'без змін'}"${sc.music === false ? ' disabled' : ''}>`, 'Грає по колу і продовжується в наступних сценах, поки інша сцена її не змінить. Під час голосу стишується.')}
+      <label class="f chk"><input type="checkbox" data-p="${PA([...b, 'music'])}" data-t="musicoff"${sc.music === false ? ' checked' : ''}><span>Вимкнути музику з цієї сцени</span></label>
+    </section>
+    <section class="sec"><h4>Кінець сцени</h4>
+      <div class="seg2">${Object.entries(names).map(([t, n]) => `<button data-act="endType" data-v="${t}" aria-pressed="${e.type === t}">${n}</button>`).join('')}</div>
+      ${endEditor(e, [...b, 'end'])}</section>
+    <section class="sec"><h4>Події посеред сцени</h4>
+      ${(sc.events || []).map((ev, i) => eventEditor(ev, [...b, 'events', i], i)).join('') || '<p class="hint">Вибір або QTE, що з\'являються на певній секунді, поки сцена ще йде.</p>'}
+      <div class="row"><button class="btn small" data-act="addEvent" data-v="choice">+ Вибір</button><button class="btn small" data-act="addEvent" data-v="qte">+ QTE</button></div></section>
+    ${hotspotSection(sc, b)}`;
+  setupHsBox(sc);
+}
+function setupHsBox(sc){
+  const box = $('#hsbox'); if (!box) return;
+  const v = $('#hsvid'), hs0 = (sc.hotspots || [])[hsSel];
+  if (v) v.addEventListener('loadedmetadata', () => { try { v.currentTime = Math.min(v.duration - 0.05, (hs0 && +hs0.from) || 0); } catch {} }, { once:true });
+  box.onpointerdown = e => {
+    e.preventDefault(); box.setPointerCapture(e.pointerId);
+    const r = box.getBoundingClientRect();
+    const pt = ev => ({ x: clamp((ev.clientX - r.left) / r.width, 0, 1), y: clamp((ev.clientY - r.top) / r.height, 0, 1) });
+    const p0 = pt(e), hit = e.target.closest('.hsr');
+    if (hit && +hit.dataset.i !== hsSel) { hsSel = +hit.dataset.i; renderInspector(); return; }
+    const h = hsSel != null ? sc.hotspots[hsSel] : null;
+    const modeHs = hit && h ? 'move' : 'draw';
+    let el = hit;
+    if (modeHs === 'draw') { box.querySelector(`.hsr[data-i="${hsSel}"]`)?.remove(); el = document.createElement('div'); el.className = 'hsr on'; box.appendChild(el); }
+    let rect = modeHs === 'move' ? { x:h.x, y:h.y, w:h.w, h:h.h } : { x:p0.x, y:p0.y, w:0, h:0 };
+    const place = () => Object.assign(el.style, { left: rect.x * 100 + '%', top: rect.y * 100 + '%', width: rect.w * 100 + '%', height: rect.h * 100 + '%' });
+    box.onpointermove = ev => {
+      const p = pt(ev);
+      if (modeHs === 'draw') rect = { x: Math.min(p0.x, p.x), y: Math.min(p0.y, p.y), w: Math.abs(p.x - p0.x), h: Math.abs(p.y - p0.y) };
+      else { rect.x = clamp(h.x + p.x - p0.x, 0, 1 - h.w); rect.y = clamp(h.y + p.y - p0.y, 0, 1 - h.h); }
+      place();
+    };
+    box.onpointerup = () => {
+      box.onpointermove = box.onpointerup = null;
+      const r2 = Object.fromEntries(Object.entries(rect).map(([k, v]) => [k, Math.round(v * 100) / 100]));
+      if (modeHs === 'draw' && (r2.w < 0.02 || r2.h < 0.02)) return renderInspector();
+      edit(() => { if (h) Object.assign(h, r2); else { (sc.hotspots ||= []).push({ label:'Об\'єкт', from:0, to: sc.duration || 6, ...r2 }); hsSel = sc.hotspots.length - 1; } }, false);
+      renderGraph(); renderInspector();
+    };
+  };
+}
+
+insp.addEventListener('input', e => {
+  const el = e.target; if (!el.dataset.p || el.tagName === 'SELECT' || el.type === 'checkbox') return;
+  edit(() => setPath(JSON.parse(el.dataset.p), el.value, el.dataset.t), true);
+  renderGraph(); if (JSON.parse(el.dataset.p)[0] === 'title') updateTitle();
+});
+insp.addEventListener('change', e => {
+  const el = e.target;
+  if (el.dataset.sid != null) return renameScene(el.dataset.sid, el.value);
+  if (el.dataset.varName != null) {
+    const old = el.dataset.varName, neu = el.value.trim().replace(/\s+/g, '_');
+    if (!neu || neu === old) return renderInspector();
+    if (neu in P.variables) { note(`Змінна «${neu}» вже існує.`); return renderInspector(); }
+    edit(() => { const nv = {}; for (const [k, v] of Object.entries(P.variables)) nv[k === old ? neu : k] = v; P.variables = nv; }, false);
+    note('Змінну перейменовано. Оновіть її в умовах та ефектах.'); return renderInspector();
+  }
+  if (el.dataset.varVal != null) { edit(() => { P.variables[el.dataset.varVal] = parseVal(el.value); }, false); return; }
+  if (!el.dataset.p) return;
+  const path = JSON.parse(el.dataset.p), t = el.dataset.t;
+  if (el.tagName === 'SELECT' || el.type === 'checkbox') {
+    if (t === 'goto' && el.value === '__new') {
+      edit(() => { const src = P.scenes[sel]; const nid = newScene({ x: (src?.pos?.x || 0) + 290, y: src?.pos?.y || 0 }); setPath(path, nid, 'goto'); }, false);
+      note('Створено нову сцену й під\'єднано.'); renderGraph(); renderInspector(); return;
+    }
+    edit(() => setPath(path, el.type === 'checkbox' ? el.checked : el.value, t), false);
+    renderGraph(); if (path[0] === 'start' || t === 'musicoff') renderInspector();
+    return;
+  }
+  endBurst();
+  if (t === 'fx') el.value = fxToStr(getPath(path));
+});
+insp.addEventListener('click', e => {
+  const b = e.target.closest('[data-act]'); if (!b) return;
+  const a = b.dataset.act, v = b.dataset.v;
+  const re = () => { renderGraph(); renderInspector(); };
+  if (a === 'test') enterPlay(sel);
+  else if (a === 'testStart') enterPlay();
+  else if (a === 'layout') { edit(autoLayout, false); renderGraph(); fit(); }
+  else if (a === 'setStart') { edit(() => P.start = sel, false); re(); }
+  else if (a === 'dup') dupScene(sel);
+  else if (a === 'del') deleteScene(sel);
+  else if (a === 'endType') setEndType(v);
+  else if (a === 'addOpt') { const p = JSON.parse(b.dataset.p); edit(() => { let arr = getPath(p); if (!arr) { setPath(p, [], 'raw'); arr = getPath(p); } arr.push({ label:`Варіант ${arr.length + 1}` }); }, false); re(); }
+  else if (a === 'delAt') { const p = JSON.parse(b.dataset.p); edit(() => getPath(p).splice(+b.dataset.i, 1), false); if (p[p.length - 1] === 'hotspots') hsSel = null; re(); }
+  else if (a === 'addEvent') {
+    edit(() => { const sc = P.scenes[sel]; const at = Math.round((sc.duration || 6) / 2 * 2) / 2;
+      (sc.events ||= []).push(v === 'qte' ? { at, type:'qte', prompt:'Швидше!', key:'Space', keyLabel:'ПРОБІЛ', window:2 }
+        : { at, type:'choice', prompt:'', timeout:4, options:[{ label:'Так' }, { label:'Ні' }] }); }, false); re();
+  }
+  else if (a === 'addLine') { edit(() => { (P.scenes[sel].lines ||= []).push({ text:'' }); }, false); re(); }
+  else if (a === 'addHs') { edit(() => { const sc = P.scenes[sel]; (sc.hotspots ||= []).push({ label:'Об\'єкт', from:0, to: sc.duration || 6, x:.4, y:.4, w:.2, h:.2 }); hsSel = sc.hotspots.length - 1; }, false); re(); }
+  else if (a === 'selHs') { hsSel = +v; renderInspector(); }
+  else if (a === 'addVar') { edit(() => { let n = 1; while (('zminna_' + n) in P.variables) n++; P.variables['zminna_' + n] = false; }, false); renderInspector(); }
+  else if (a === 'delVar') { edit(() => delete P.variables[v], false); renderInspector(); }
+  else if (a === 'go') { select(v); centerOn(v); }
+});
+
+/* --- files, save, project --- */
+function newProject(){ return { title:'Нова історія', start:'pochatok', variables:{}, scenes:{ pochatok:{ title:'Початок', text:'', duration:6, color:'#2d3a5c', pos:{ x:60, y:120 }, end:{ type:'ending', title:'' } } } }; }
+function replaceProject(p, keepLink){
+  if (!keepLink) { C.link = null; saveLink(); updateCloudChip(); }
+  endBurst(); pushUndo(cur);
+  P = normalize(p); sel = null; hsSel = null; seenEver.clear(); endingsFound.clear();
+  ensureLayout(); cur = JSON.stringify(P);
+  renderGraph(); renderInspector(); fit(); scheduleSave(); updateUndoUi(); updateTitle();
+}
+function updateMediaList(){
+  const names = [...files.keys()].filter(k => !k.includes('/'));
+  const fill = (id, test) => $('#' + id).innerHTML = names.filter(test).map(k => `<option value="${esc(k)}"></option>`).join('');
+  fill('listVideo', isVid); fill('listImage', isImg); fill('listAudio', isAud);
+  for (const [k, u] of files) if (isVid(k)) queuePoster(u);
+}
+async function handleFiles(list){
+  const arr = [...list]; if (!arr.length) return;
+  if (arr.every(isZip)) return askZip(arr);
+  leaveReviews();
+  const jsons = arr.filter(f => /\.json$/i.test(f.name));
+  const json = jsons.find(f => f.name.toLowerCase() === 'project.json') || jsons[0];
+  const media = arr.filter(f => !/\.json$/i.test(f.name));
+  if (media.length) {
+    for (const u of new Set(files.values())) if (u.startsWith('blob:')) URL.revokeObjectURL(u);
+    files.clear(); fileObjs.clear(); cloudFiles.clear(); posters.clear(); posterQ.length = 0; posterFail.clear();
+    media.forEach(f => { const url = URL.createObjectURL(f); files.set(f.name, url); fileObjs.set(f.name, f); if (f.webkitRelativePath) files.set(f.webkitRelativePath.split('/').slice(1).join('/'), url); });
+    if (C.link) applyMedia(C.link.media);
+    updateMediaList();
+  }
+  if (json) {
+    try { if (C.reviewing) reviewClose(true); replaceProject(JSON.parse(await json.text())); note(`Відкрито ${json.name}${media.length ? `, медіафайлів: ${media.length}` : ''}.`); }
+    catch (e) { note(`Не вдалося прочитати ${json.name}: ${e.message}`); }
+  } else if (media.length) { note(`Підключено медіафайлів: ${media.length}. Оберіть їх у полях сцени.`); renderGraph(); renderInspector(); }
+  else note('Серед обраного немає project.json чи медіафайлів.');
+}
+$('#inFolder').onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
+$('#inFiles').onchange = e => { handleFiles(e.target.files); e.target.value = ''; };
+$('#bNew').onclick = () => { leaveReviews(); replaceProject(newProject()); setMode('edit'); note('Новий проєкт. Ctrl+Z повертає попередній.'); };
+$('#bDemo').onclick = () => showDemo();
+const inFrame = (() => { try { return window.top !== window.self; } catch { return true; } })();
+$('#bSave').onclick = async () => {
+  endBurst();
+  const txt = JSON.stringify(P, null, 2);
+  if (inFrame) {
+    const dl = window.claude && typeof window.claude.use === 'function' ? await window.claude.use('downloads') : null;
+    if (dl) {
+      try { await dl.save({ filename:'project.json', data:new Blob([txt], { type:'application/json' }) }); note('project.json збережено.'); return; }
+      catch (e) { if (e && e.code !== 'bad_request' && e.code !== 'not_granted') return; }
+    }
+  }
+  if (!inFrame) {
+    const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([txt], { type:'application/json' })); a.download = 'project.json';
+    document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 3000);
+    note('project.json збережено в папку завантажень.');
+  } else { $('#saveText').value = txt; $('#saveModal').hidden = false; $('#saveText').focus(); $('#saveText').select(); }
+};
+$('#saveCopy').onclick = () => {
+  navigator.clipboard.writeText($('#saveText').value).then(() => note('Скопійовано. Вставте в файл project.json.'))
+    .catch(() => { $('#saveText').select(); note('Текст виділено, натисніть Ctrl+C.'); });
+};
+$('#saveClose').onclick = () => $('#saveModal').hidden = true;
+$('#saveModal').onclick = e => { if (e.target.id === 'saveModal') $('#saveModal').hidden = true; };
+
+/* --- drag & drop of files --- */
+const kindOf = f => isVid(f.name) || /^video\//.test(f.type) ? 'video' : isImg(f.name) || /^image\//.test(f.type) ? 'image' : isAud(f.name) || /^audio\//.test(f.type) ? 'audio' : null;
+const KIND_UA = { video:'відео', image:'зображення', audio:'аудіо' };
+const natCmp = (a, b) => a.name.localeCompare(b.name, 'uk', { numeric:true });
+
+let posterBusy = false;
+function queuePoster(url){ if (!url || posters.has(url) || posterFail.has(url) || posterQ.includes(url)) return; posterQ.push(url); runPoster(); }
+function runPoster(){
+  if (posterBusy || !posterQ.length) return; posterBusy = true;
+  const url = posterQ.shift(), v = document.createElement('video'); let done = false, tm;
+  const fin = ok => { if (done) return; done = true; clearTimeout(tm); v.removeAttribute('src'); v.load(); posterBusy = false; if (!ok) posterFail.add(url); if (ok && mode === 'edit' && !drag) renderGraph(); runPoster(); };
+  tm = setTimeout(() => fin(false), 5000);
+  v.muted = true; v.preload = 'metadata'; v.playsInline = true;
+  v.onloadedmetadata = () => { try { v.currentTime = Math.min(0.1, (v.duration || 1) / 2); } catch { fin(false); } };
+  v.onseeked = () => { try { const c = document.createElement('canvas'); c.width = 320; c.height = Math.round(320 * (v.videoHeight || 9) / (v.videoWidth || 16)); c.getContext('2d').drawImage(v, 0, 0, c.width, c.height); posters.set(url, c.toDataURL('image/jpeg', .7)); fin(true); } catch { fin(false); } };
+  v.onerror = () => fin(false);
+  v.src = url;
+}
+function addMedia(f){
+  const kind = kindOf(f); if (!kind) return null;
+  const same = x => x && x.size === f.size && x.lastModified === f.lastModified;
+  let name = f.name;
+  if (files.has(name) && !same(fileObjs.get(name))) {
+    const m = f.name.match(/^(.*?)(\.[^.]*)?$/); let n = 2, cand;
+    for (;; n++) { cand = `${m[1]} (${n})${m[2] || ''}`; if (!files.has(cand) || same(fileObjs.get(cand))) break; }
+    name = cand;
+  }
+  if (!files.has(name)) { files.set(name, URL.createObjectURL(f)); fileObjs.set(name, f); }
+  return { name, kind };
+}
+function idFromName(name){
+  const b = name.replace(/\.[^.]+$/, '').trim().replace(/\s+/g, '_').replace(/[^\wЀ-ӿ-]/g, '') || 'scena';
+  if (!P.scenes[b]) return b; let n = 2; while (P.scenes[`${b}_${n}`]) n++; return `${b}_${n}`;
+}
+function titleFromName(name){ const t = name.replace(/\.[^.]+$/, '').replace(/[_-]+/g, ' ').trim(); return t ? t[0].toUpperCase() + t.slice(1) : 'Нова сцена'; }
+function createSceneFromMedia(it, pos){
+  const id = idFromName(it.name);
+  P.scenes[id] = { title: titleFromName(it.name), text:'', ...(it.kind === 'image' ? { image: it.name, duration: 6 } : { video: it.name }),
+    color: PALETTE[Object.keys(P.scenes).length % PALETTE.length], pos:{ x: Math.round(pos.x / 10) * 10, y: Math.round(pos.y / 10) * 10 }, end:{ type:'ending', title:'' } };
+  return id;
+}
+async function collectFiles(dt){
+  const entries = [...(dt.items || [])].filter(i => i.kind === 'file').map(i => i.webkitGetAsEntry ? i.webkitGetAsEntry() : null);
+  if (!entries.length || !entries.every(Boolean)) return [...dt.files];
+  const out = [];
+  const walk = async en => {
+    if (en.isFile) out.push(await new Promise((res, rej) => en.file(res, rej)));
+    else { const rd = en.createReader(); for (;;) { const b = await new Promise((res, rej) => rd.readEntries(res, rej)); if (!b.length) break; for (const c of b) await walk(c); } }
+  };
+  for (const en of entries) await walk(en);
+  return out;
+}
+function dropTarget(t){
+  if (mode !== 'edit') return { k:'reg' };
+  const fld = t.closest('input[list]');
+  if (fld && !fld.disabled && fld.dataset.p) { const l = fld.getAttribute('list'); return { k:'field', el:fld, want: l === 'listVideo' ? 'video' : l === 'listImage' ? 'image' : 'audio', path: JSON.parse(fld.dataset.p) }; }
+  const nd = t.closest('.gnode'); if (nd) return { k:'scene', id:nd.dataset.id, el:nd };
+  if (t.closest('#insp')) return sel ? { k:'scene', id:sel, el:insp } : { k:'reg' };
+  if (t.closest('#cvs')) return { k:'new', el:cvs };
+  return { k:'reg' };
+}
+function handleDrop(list, tg, shift, w){
+  if (!list.length) return;
+  if (list.length && list.every(isZip)) return askZip(list);
+  if (list.some(f => /\.json$/i.test(f.name))) { handleFiles(list); if (mode !== 'edit') setMode('edit'); return; }
+  if (C.reviewing) return note('Під час перегляду роботи студента файли не додаються.');
+  const items = list.map(addMedia).filter(Boolean);
+  if (!items.length) return note('Підтримуються відео, зображення, аудіо та project.json.');
+  updateMediaList();
+  const vis = items.filter(i => i.kind !== 'audio').sort(natCmp), aud = items.filter(i => i.kind === 'audio');
+  const audField = shift ? 'music' : 'voice', audUa = shift ? 'музика' : 'голос';
+  if (tg.k === 'reg') { if (mode === 'edit') { renderGraph(); renderInspector(); } return note(`Підключено файлів: ${items.length}. Оберіть їх у полях сцени або киньте на сцену.`); }
+  if (tg.k === 'field') {
+    const it = items.find(i => i.kind === tg.want);
+    if (!it) return note(`У це поле потрібне ${KIND_UA[tg.want]}.`);
+    edit(() => setPath(tg.path, it.name, 'str'), false);
+    renderGraph(); renderInspector(); return note(`Підставлено: ${it.name}`);
+  }
+  if (tg.k === 'scene' && P.scenes[tg.id]) {
+    const sc = P.scenes[tg.id], parts = []; let extra = 0;
+    edit(() => {
+      const first = vis[0];
+      if (first) {
+        if (first.kind === 'video') { sc.video = first.name; delete sc.image; } else { sc.image = first.name; delete sc.video; }
+        parts.push(`${KIND_UA[first.kind]} ${first.name}`);
+      }
+      if (aud[0]) { sc[audField] = aud[0].name; parts.push(`${audUa} ${aud[0].name}`); }
+      vis.slice(1).forEach((it, i) => { createSceneFromMedia(it, { x: sc.pos.x + 290, y: sc.pos.y + i * 190 }); extra++; });
+    }, false);
+    sel = tg.id; hsSel = null; renderGraph(); renderInspector();
+    return note(`Сцена «${sc.title || tg.id}»: ${parts.join(', ')}${extra ? `. Ще сцен створено: ${extra}` : ''}. Ctrl+Z скасовує.`);
+  }
+  if (tg.k === 'new') {
+    if (!vis.length) return note('Аудіо киньте на сцену: голос, або з Shift — музика. Файл уже підключено.');
+    let firstId = null;
+    edit(() => {
+      vis.forEach((it, i) => { const id = createSceneFromMedia(it, { x: w.x - NW / 2 + (i % 4) * 250, y: w.y - 20 + Math.floor(i / 4) * 190 }); firstId ||= id; });
+      if (vis.length === 1 && aud[0]) P.scenes[firstId][audField] = aud[0].name;
+    }, false);
+    sel = firstId; hsSel = null; renderGraph(); renderInspector();
+    return note(vis.length === 1 ? `Створено сцену «${P.scenes[firstId].title}». Ctrl+Z скасовує.` : `Створено сцен: ${vis.length}, впорядковано за назвою файлу. Ctrl+Z скасовує.`);
+  }
+}
+const dropHint = $('#dropHint'); let dropT = null;
+const hasFiles = e => e.dataTransfer && [...e.dataTransfer.types].includes('Files');
+function clearMark(){ document.querySelectorAll('.gnode.drop,.dropfld,.dropins,.dropnew').forEach(n => n.classList.remove('drop', 'dropfld', 'dropins', 'dropnew')); }
+function endDrag(){ clearTimeout(dropT); dropHint.hidden = true; clearMark(); }
+document.addEventListener('dragover', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault(); e.dataTransfer.dropEffect = 'copy';
+  const t = e.target.nodeType === 1 ? e.target : e.target.parentElement;
+  const tg = dropTarget(t); clearMark(); let txt;
+  if (C.reviewing && mode === 'edit') txt = 'Під час перегляду роботи студента файли не додаються';
+  else if (tg.k === 'field') { tg.el.classList.add('dropfld'); txt = `Відпустіть, щоб підставити ${KIND_UA[tg.want]} у це поле`; }
+  else if (tg.k === 'scene') { tg.el.classList.add(tg.el === insp ? 'dropins' : 'drop'); txt = `Додати до сцени «${P.scenes[tg.id]?.title || tg.id}» · аудіо: голос, з Shift — музика`; }
+  else if (tg.k === 'new') { tg.el.classList.add('dropnew'); txt = 'Відпустіть, щоб створити сцени з файлів'; }
+  else txt = 'Відпустіть, щоб підключити файли';
+  dropHint.textContent = txt; dropHint.hidden = false;
+  clearTimeout(dropT); dropT = setTimeout(endDrag, 220);
+});
+document.addEventListener('drop', e => {
+  if (!hasFiles(e)) return;
+  e.preventDefault();
+  const t = e.target.nodeType === 1 ? e.target : e.target.parentElement;
+  const tg = dropTarget(t), shift = e.shiftKey, w = toWorld(e.clientX, e.clientY);
+  endDrag();
+  collectFiles(e.dataTransfer).then(list => handleDrop(list, tg, shift, w)).catch(err => note('Не вдалося прочитати файли: ' + err.message));
+});
+window.addEventListener('dragend', endDrag);
+
+/* ================= ZIP export / open / review, demo from the repository ================= */
+const MIME = { mp4:'video/mp4', m4v:'video/mp4', webm:'video/webm', mov:'video/quicktime', ogv:'video/ogg', png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', avif:'image/avif', svg:'image/svg+xml',
+  mp3:'audio/mpeg', wav:'audio/wav', ogg:'audio/ogg', oga:'audio/ogg', opus:'audio/ogg', m4a:'audio/mp4', aac:'audio/aac', flac:'audio/flac' };
+const isZip = f => /\.zip$/i.test(f.name);
+const fmtSize = b => b >= 1048576 ? (b / 1048576).toFixed(1) + ' МБ' : Math.max(1, Math.round(b / 1024)) + ' КБ';
+
+/* --- ZIP writer (stored, UTF-8 names) --- */
+const CRC_T = (() => { const t = new Uint32Array(256); for (let n = 0; n < 256; n++) { let c = n; for (let k = 0; k < 8; k++) c = c & 1 ? 0xEDB88320 ^ (c >>> 1) : c >>> 1; t[n] = c >>> 0; } return t; })();
+async function crcOf(blob, onChunk){
+  let c = 0xFFFFFFFF; const CH = 4194304;
+  for (let o = 0; o < blob.size; o += CH) {
+    const u = new Uint8Array(await blob.slice(o, o + CH).arrayBuffer());
+    for (let i = 0; i < u.length; i++) c = CRC_T[(c ^ u[i]) & 255] ^ (c >>> 8);
+    if (onChunk) onChunk(Math.min(o + CH, blob.size));
+  }
+  return (c ^ 0xFFFFFFFF) >>> 0;
+}
+async function buildZip(entries, onProgress){
+  const enc = new TextEncoder(), parts = [], cd = []; let off = 0, done = 0;
+  const total = entries.reduce((s, e) => s + e.blob.size, 0) || 1, d = new Date();
+  const tm = ((d.getHours() << 11) | (d.getMinutes() << 5) | (d.getSeconds() >> 1)) & 0xFFFF;
+  const dt = ((((d.getFullYear() - 1980) << 9) | ((d.getMonth() + 1) << 5) | d.getDate())) & 0xFFFF;
+  for (const e of entries) {
+    const name = enc.encode(e.name), size = e.blob.size, base = done;
+    const crc = await crcOf(e.blob, n => onProgress && onProgress((base + n) / total));
+    done += size;
+    const h = new DataView(new ArrayBuffer(30 + name.length));
+    h.setUint32(0, 0x04034b50, true); h.setUint16(4, 20, true); h.setUint16(6, 0x0800, true); h.setUint16(8, 0, true);
+    h.setUint16(10, tm, true); h.setUint16(12, dt, true); h.setUint32(14, crc, true); h.setUint32(18, size, true); h.setUint32(22, size, true);
+    h.setUint16(26, name.length, true); h.setUint16(28, 0, true); new Uint8Array(h.buffer).set(name, 30);
+    parts.push(h.buffer, e.blob); cd.push({ name, size, crc, off }); off += h.byteLength + size;
+  }
+  const cdStart = off; let cdSize = 0;
+  for (const c of cd) {
+    const h = new DataView(new ArrayBuffer(46 + c.name.length));
+    h.setUint32(0, 0x02014b50, true); h.setUint16(4, 20, true); h.setUint16(6, 20, true); h.setUint16(8, 0x0800, true); h.setUint16(10, 0, true);
+    h.setUint16(12, tm, true); h.setUint16(14, dt, true); h.setUint32(16, c.crc, true); h.setUint32(20, c.size, true); h.setUint32(24, c.size, true);
+    h.setUint16(28, c.name.length, true); h.setUint32(42, c.off, true); new Uint8Array(h.buffer).set(c.name, 46);
+    parts.push(h.buffer); cdSize += h.byteLength;
+  }
+  const e = new DataView(new ArrayBuffer(22));
+  e.setUint32(0, 0x06054b50, true); e.setUint16(8, cd.length, true); e.setUint16(10, cd.length, true); e.setUint32(12, cdSize, true); e.setUint32(16, cdStart, true);
+  parts.push(e.buffer);
+  return new Blob(parts, { type:'application/zip' });
+}
+
+/* --- ZIP reader (stored + deflate) --- */
+function decodeName(b, flags){
+  if (flags & 0x800) return new TextDecoder('utf-8').decode(b);
+  try { return new TextDecoder('utf-8', { fatal:true }).decode(b); } catch {}
+  try { return new TextDecoder('ibm866').decode(b); } catch { return new TextDecoder('latin1').decode(b); }
+}
+async function readZip(file){
+  if (file.size < 22) throw new Error('Файл порожній або це не ZIP.');
+  const tl = Math.min(file.size, 65557), tail = new DataView(await file.slice(file.size - tl).arrayBuffer());
+  let e = -1; for (let i = tl - 22; i >= 0; i--) if (tail.getUint32(i, true) === 0x06054b50) { e = i; break; }
+  if (e < 0) throw new Error('Це не ZIP-архів або файл пошкоджений.');
+  const total = tail.getUint16(e + 10, true), cdSize = tail.getUint32(e + 12, true), cdOff = tail.getUint32(e + 16, true);
+  if (total === 0xFFFF || cdSize === 0xFFFFFFFF || cdOff === 0xFFFFFFFF) throw new Error('Архіви понад 4 ГБ (ZIP64) не підтримуються.');
+  const cd = new DataView(await file.slice(cdOff, cdOff + cdSize).arrayBuffer()), u8 = new Uint8Array(cd.buffer), out = []; let p = 0;
+  for (let n = 0; n < total && p + 46 <= cd.byteLength; n++) {
+    if (cd.getUint32(p, true) !== 0x02014b50) break;
+    const flags = cd.getUint16(p + 8, true), method = cd.getUint16(p + 10, true), csize = cd.getUint32(p + 20, true), usize = cd.getUint32(p + 24, true);
+    const nl = cd.getUint16(p + 28, true), xl = cd.getUint16(p + 30, true), cl = cd.getUint16(p + 32, true), lo = cd.getUint32(p + 42, true);
+    out.push({ name: decodeName(u8.subarray(p + 46, p + 46 + nl), flags), flags, method, csize, usize, lo });
+    p += 46 + nl + xl + cl;
+  }
+  return out;
+}
+async function zipEntryBlob(file, en, type){
+  if (en.flags & 1) throw new Error('Архів із паролем не підтримується.');
+  const lh = new DataView(await file.slice(en.lo, en.lo + 30).arrayBuffer());
+  if (lh.getUint32(0, true) !== 0x04034b50) throw new Error('Пошкоджений запис в архіві: ' + en.name);
+  const start = en.lo + 30 + lh.getUint16(26, true) + lh.getUint16(28, true), raw = file.slice(start, start + en.csize);
+  if (en.method === 0) return raw.slice(0, raw.size, type || '');
+  if (en.method === 8) {
+    if (typeof DecompressionStream !== 'function') throw new Error('Цей браузер не вміє розпаковувати ZIP. Оновіть Chrome, Edge, Firefox або Safari.');
+    const b = await new Response(raw.stream().pipeThrough(new DecompressionStream('deflate-raw'))).blob();
+    return b.slice(0, b.size, type || '');
+  }
+  throw new Error('Непідтримуваний спосіб стиснення в архіві: ' + en.name);
+}
+const ZIP_SKIP = /(^|\/)(__MACOSX\/|\.DS_Store$|Thumbs\.db$|desktop\.ini$)/i;
+async function loadZipProject(file){
+  const entries = (await readZip(file)).filter(e => !e.name.endsWith('/') && !ZIP_SKIP.test(e.name));
+  const isPj = n => /(^|\/)project\.json$/i.test(n);
+  const js = entries.filter(e => /\.json$/i.test(e.name)).sort((a, b) => (isPj(b.name) - isPj(a.name)) || (a.name.split('/').length - b.name.split('/').length));
+  if (!js.length) throw new Error('В архіві немає project.json.');
+  const jn = js[0], prefix = jn.name.includes('/') ? jn.name.slice(0, jn.name.lastIndexOf('/') + 1) : '';
+  let project;
+  try { project = JSON.parse(await (await zipEntryBlob(file, jn, 'application/json')).text()); } catch (e) { throw new Error('project.json в архіві пошкоджений: ' + e.message); }
+  if (!project || typeof project !== 'object' || !project.scenes || typeof project.scenes !== 'object') throw new Error('У project.json немає сцен.');
+  const media = [];
+  for (const en of entries) { if (en === jn || !en.name.startsWith(prefix)) continue; const rel = en.name.slice(prefix.length), type = MIME[extOf(rel)]; if (type) media.push({ rel, en, type }); }
+  return { project, media, file };
+}
+async function installZip(z, tok){
+  for (const m of z.media) {
+    if (tok && ZR.tok !== tok) return false;
+    const blob = await zipEntryBlob(z.file, m.en, m.type), url = URL.createObjectURL(blob);
+    if (tok) ZR.urls.push(url);
+    files.set(m.rel, url); fileObjs.set(m.rel, blob);
+    const base = m.rel.split('/').pop(); if (base !== m.rel && !files.has(base)) { files.set(base, url); fileObjs.set(base, blob); }
+  }
+  updateMediaList(); return true;
+}
+function resetFiles(){
+  for (const u of new Set(files.values())) if (u.startsWith('blob:')) URL.revokeObjectURL(u);
+  files.clear(); fileObjs.clear(); cloudFiles.clear(); posters.clear(); posterQ.length = 0; posterFail.clear();
+}
+
+/* --- save a blob as a file --- */
+async function saveBlob(filename, blob){
+  if (inFrame && window.claude && typeof window.claude.use === 'function') {
+    try { const dl = await window.claude.use('downloads'); if (dl) { await dl.save({ filename, data:blob }); return true; } }
+    catch (e) { if (e && e.code !== 'bad_request' && e.code !== 'not_granted') return false; }
+  }
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = filename;
+  document.body.appendChild(a); a.click(); a.remove(); setTimeout(() => URL.revokeObjectURL(a.href), 60000);
+  return true;
+}
+
+/* --- export dialog --- */
+let expRows = [];
+const slugName = t => String(t || '').trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_').slice(0, 80) || 'rozvylka';
+const zipName = n => String(n).replace(/\\/g, '/').replace(/^(\.\/|\/)+/, '');
+function openExport(){
+  endBurst();
+  expRows = mediaNames(P).filter(n => !/(^|\/)\.\.(\/|$)/.test(zipName(n))).map(n => { const b = fileObjs.get(n); return { n, b, have: !!(b || files.get(n)) }; });
+  const miss = expRows.filter(r => !r.have);
+  $('#expName').value = slugName(P.title) + '.zip';
+  $('#expList').innerHTML = `<li><span>project.json</span><span>${fmtSize(JSON.stringify(P).length)}</span></li>` +
+    expRows.map(r => `<li class="${r.have ? '' : 'miss'}"><span>${esc(r.n)}</span><span>${r.have ? (r.b ? fmtSize(r.b.size) : 'із демо') : 'немає файлу'}</span></li>`).join('');
+  $('#expInfo').textContent = miss.length
+    ? `Не підключено файлів: ${miss.length}. Їх не буде в архіві. Киньте файли у вікно редактора й повторіть вивантаження.`
+    : expRows.length ? `Усі файли підключені (${expRows.length}).` : 'У проєкті немає відео, зображень і звуку, в архіві буде лише project.json.';
+  $('#expProg').hidden = true; $('#expGo').disabled = false;
+  $('#expModal').hidden = false; $('#expName').focus(); $('#expName').select();
+}
+$('#bZip').onclick = openExport;
+$('#expCancel').onclick = () => $('#expModal').hidden = true;
+$('#expName').addEventListener('keydown', e => { if (e.key === 'Enter') $('#expGo').click(); });
+$('#expGo').onclick = async () => {
+  const go = $('#expGo'); if (go.disabled) return; go.disabled = true;
+  let name = $('#expName').value.trim().replace(/[\\/:*?"<>|]+/g, '') || 'rozvylka'; if (!/\.zip$/i.test(name)) name += '.zip';
+  const prog = $('#expProg'), bar = prog.firstElementChild; prog.hidden = false; bar.style.width = '0';
+  try {
+    const entries = [{ name:'project.json', blob:new Blob([JSON.stringify(P, null, 2)], { type:'application/json' }) }], skipped = [];
+    for (const r of expRows) {
+      if (!r.have) continue; let blob = r.b;
+      if (!blob) { try { const resp = await fetch(files.get(r.n)); if (!resp.ok) throw new Error('bad'); blob = await resp.blob(); } catch { skipped.push(r.n); continue; } }
+      entries.push({ name: zipName(r.n), blob });
+    }
+    if (entries.reduce((s, e) => s + e.blob.size, 0) > 4e9 || entries.length > 65000) throw new Error('Проєкт завеликий для одного ZIP (понад 4 ГБ). Зменште розмір відео.');
+    const zip = await buildZip(entries, f => { bar.style.width = Math.round(f * 100) + '%'; });
+    bar.style.width = '100%';
+    const ok = await saveBlob(name, zip);
+    $('#expModal').hidden = true;
+    note(ok ? `Вивантажено ${name} (${fmtSize(zip.size)}).${skipped.length ? ' Не вдалося додати: ' + skipped.join(', ') : ''}` : 'Не вдалося зберегти файл.');
+  } catch (e) { note('Не вдалося створити ZIP: ' + e.message); }
+  finally { go.disabled = false; prog.hidden = true; bar.style.width = '0'; }
+};
+
+/* --- open ZIP for editing --- */
+async function openZipEdit(file){
+  try {
+    note(`Відкриваю ${file.name}…`);
+    const z = await loadZipProject(file);
+    leaveReviews(); resetFiles();
+    await installZip(z, null);
+    replaceProject(z.project); setMode('edit');
+    const miss = mediaNames(P).filter(n => !files.has(n));
+    note(`Відкрито ${file.name}: сцен ${Object.keys(P.scenes).length}, файлів ${z.media.length}${miss.length ? `. Немає файлів: ${miss.length}` : ''}. Ctrl+Z повертає попередній проєкт (файли додайте знову).`);
+  } catch (e) { note(`${file.name}: ${e.message}`); }
+}
+$('#inZip').onchange = e => { const f = e.target.files[0]; e.target.value = ''; if (f) openZipEdit(f); };
+
+/* --- what to do with a dropped ZIP --- */
+let zcFiles = [];
+function askZip(zips){
+  if (ZR.open && !ZR.demo) return openReview(zips);
+  zcFiles = zips;
+  $('#zcInfo').textContent = zips.length === 1 ? zips[0].name : `Архівів: ${zips.length}`;
+  $('#zcEdit').hidden = zips.length !== 1;
+  $('#zipChoice').hidden = false;
+}
+$('#zcEdit').onclick = () => { $('#zipChoice').hidden = true; openZipEdit(zcFiles[0]); };
+$('#zcReview').onclick = () => { $('#zipChoice').hidden = true; openReview(zcFiles); };
+$('#zcCancel').onclick = () => $('#zipChoice').hidden = true;
+
+/* --- review mode (teacher, demo) --- */
+function leaveReviews(){ if (C.reviewing) reviewClose(true); if (ZR.open) closeReview(true); }
+function beginReview(){
+  endBurst(); clearTimeout(cloudT);
+  ZR.stash = { P: JSON.stringify(P), undo: [...undo], redo: [...redo], cur, files: new Map(files), objs: new Map(fileObjs), cloud: new Set(cloudFiles), posters: new Map(posters) };
+  files.clear(); fileObjs.clear(); cloudFiles.clear(); posters.clear(); posterQ.length = 0; posterFail.clear();
+  ZR.open = true; ZR.demo = false; ZR.list = []; ZR.i = -1; ZR.urls = []; ZR.tok = null;
+}
+function closeReview(silent){
+  if (!ZR.open) return; const st = ZR.stash; ZR.tok = null;
+  for (const u of ZR.urls) URL.revokeObjectURL(u); ZR.urls = [];
+  files.clear(); fileObjs.clear(); cloudFiles.clear(); posters.clear(); posterQ.length = 0; posterFail.clear();
+  st.files.forEach((v, k) => files.set(k, v)); st.objs.forEach((v, k) => fileObjs.set(k, v)); st.cloud.forEach(k => cloudFiles.add(k)); st.posters.forEach((v, k) => posters.set(k, v));
+  P = JSON.parse(st.P); undo = st.undo; redo = st.redo; cur = st.cur; sel = null; hsSel = null; seenEver.clear(); endingsFound.clear();
+  ZR.open = false; ZR.demo = false; ZR.stash = null; ZR.list = []; ZR.i = -1;
+  renderZipBar(); updateMediaList(); updateUndoUi(); updateTitle(); needFit = true;
+  if (!silent) setMode('edit'); else if (mode === 'edit') { renderGraph(); renderInspector(); fit(); }
+}
+function adoptReview(){
+  if (!ZR.open) return;
+  ZR.tok = null; ZR.urls = []; ZR.open = false; ZR.demo = false; ZR.stash = null; ZR.list = []; ZR.i = -1;
+  C.link = null; saveLink(); updateCloudChip();
+  endBurst(); cur = JSON.stringify(P); undo = []; redo = [];
+  renderZipBar(); updateUndoUi(); scheduleSave(); setMode('edit');
+  note('Це тепер ваша копія для редагування. Файли залишилися підключеними.');
+}
+function stageError(title, text){
+  setMode('play'); S.started = false; S.over = false; M.toDemo({ duration:1 }); M.pause(); AU.stop();
+  showScreen('Не вдалося відкрити', esc(title), esc(text), null);
+}
+function showProject(project){
+  P = normalize(project); sel = null; hsSel = null; seenEver.clear(); endingsFound.clear();
+  ensureLayout(); cur = JSON.stringify(P); undo = []; redo = [];
+  updateMediaList(); updateUndoUi(); updateTitle(); renderGraph(); renderInspector(); needFit = true;
+}
+async function reviewZip(i){
+  const it = ZR.list[i]; if (!it) return false;
+  const tok = ZR.tok = {}; ZR.i = i; renderZipBar(); note(`Розпаковую ${it.name}…`);
+  try {
+    const z = await loadZipProject(it.file);
+    if (ZR.tok !== tok) return false;
+    for (const u of ZR.urls) URL.revokeObjectURL(u); ZR.urls = [];
+    files.clear(); fileObjs.clear(); cloudFiles.clear(); posters.clear(); posterQ.length = 0; posterFail.clear();
+    if (!(await installZip(z, tok)) || ZR.tok !== tok) return false;
+    it.err = null; it.loaded = true;
+    showProject(z.project); renderZipBar(); note(''); enterPlay();
+    return true;
+  } catch (e) {
+    if (ZR.tok !== tok) return false;
+    it.err = e.message; renderZipBar(); note('');
+    if (ZR.list.some(x => x.loaded)) stageError(it.name, e.message);
+    return false;
+  }
+}
+async function openReview(list){
+  const zips = [...list].filter(isZip);
+  if (!zips.length) return note('Оберіть ZIP-архіви з роботами.');
+  if (ZR.open && ZR.demo) closeReview(true);
+  if (C.reviewing) reviewClose(true);
+  const fresh0 = !ZR.open; if (fresh0) beginReview();
+  const known = new Set(ZR.list.map(x => x.file.name + ':' + x.file.size));
+  const fresh = zips.filter(f => !known.has(f.name + ':' + f.size)).sort(natCmp);
+  if (!fresh.length) return note('Ці архіви вже додано.');
+  const first = ZR.list.length; fresh.forEach(f => ZR.list.push({ file:f, name:f.name }));
+  for (let k = first; k < ZR.list.length; k++) if (await reviewZip(k)) return;
+  if (!ZR.list.some(x => x.loaded)) { const msg = ZR.list.map(x => `${x.name}: ${x.err}`).join('; '); closeReview(true); note('Не вдалося відкрити: ' + msg); }
+}
+async function showDemo(){
+  note('Завантажую демо…');
+  const r = await loadRepoDemo().catch(() => null);
+  leaveReviews(); beginReview(); ZR.demo = true;
+  if (r) for (const [n, u] of Object.entries(r.found)) files.set(n, u);
+  showProject(clone(r ? r.project : DEMO)); renderZipBar(); enterPlay();
+  note(r && r.missing.length ? `У демо не знайдено файлів: ${r.missing.length} (${r.missing.slice(0, 3).join(', ')}${r.missing.length > 3 ? '…' : ''}).` : '');
+}
+function renderZipBar(){
+  const b = $('#zipBar');
+  if (!ZR.open) { b.hidden = true; b.innerHTML = ''; return; }
+  b.hidden = false;
+  if (ZR.demo) { b.innerHTML = `<span>Демо «${esc(P.title || 'Без назви')}». Зміни тут не зберігаються, ваша робота на місці.</span>
+    <button class="btn small" data-z="adopt">Редагувати копію</button><button class="btn small primary" data-z="close">Закрити демо</button>`; return; }
+  const n = ZR.list.length, it = ZR.list[ZR.i], ok = it && it.loaded && !it.err;
+  const miss = ok ? mediaNames(P).filter(x => !files.has(x)) : [];
+  b.innerHTML = `<span>Перевірка робіт · <b>${ZR.i + 1} з ${n}</b> · ${esc(it ? it.name : '')}${ok ? ` · «${esc(P.title || 'Без назви')}»` : ''}${it && it.err ? ` · <span class="warn">${esc(it.err)}</span>` : ''}${miss.length ? ` · <span class="warn" title="${esc(miss.join(', '))}">немає файлів: ${miss.length}</span>` : ''}. Зміни тут не зберігаються.</span>
+    <button class="btn small" data-z="prev"${ZR.i <= 0 ? ' disabled' : ''}>‹ Попередня</button>
+    <select data-z="pick" aria-label="Робота">${ZR.list.map((x, k) => `<option value="${k}"${k === ZR.i ? ' selected' : ''}>${k + 1}. ${esc(x.name.replace(/\.zip$/i, ''))}${x.err ? ' ⚠' : ''}</option>`).join('')}</select>
+    <button class="btn small" data-z="next"${ZR.i >= n - 1 ? ' disabled' : ''}>Наступна ›</button>
+    <button class="btn small" data-z="add">+ Додати ZIP</button>
+    <button class="btn small" data-z="adopt">Редагувати копію</button>
+    <button class="btn small primary" data-z="close">Закрити перевірку</button>`;
+}
+$('#zipBar').addEventListener('click', e => {
+  const b = e.target.closest('[data-z]'); if (!b) return; const z = b.dataset.z;
+  if (z === 'prev') reviewZip(ZR.i - 1); else if (z === 'next') reviewZip(ZR.i + 1);
+  else if (z === 'add') $('#inReview').click(); else if (z === 'adopt') adoptReview(); else if (z === 'close') closeReview(false);
+});
+$('#zipBar').addEventListener('change', e => { if (e.target.dataset.z === 'pick') reviewZip(+e.target.value); });
+$('#bReview').onclick = () => $('#inReview').click();
+$('#inReview').onchange = e => { const l = [...e.target.files]; e.target.value = ''; openReview(l); };
+
+/* --- demo project stored next to the site (demo/project.json) --- */
+const DEMO_DIR = 'demo/', DEMO_BASES = ['', 'images/', 'media/', 'img/', 'assets/', 'video/', 'audio/', 'sounds/'];
+const encPath = p => p.split('/').map(encodeURIComponent).join('/');
+async function resolveRemote(names){
+  const found = {}, missing = [];
+  await Promise.all(names.map(async n => {
+    for (const b of DEMO_BASES) {
+      const url = DEMO_DIR + b + encPath(n);
+      try { const r = await fetch(url, { method:'HEAD' }); if (r.ok) { found[n] = url; return; } } catch { break; }
+    }
+    missing.push(n);
+  }));
+  return { found, missing };
+}
+async function loadRepoDemo(){
+  try {
+    const r = await fetch(DEMO_DIR + 'project.json', { cache:'no-cache' });
+    if (!r.ok) return null;
+    const project = await r.json();
+    if (!project || typeof project !== 'object' || !project.scenes || !Object.keys(project.scenes).length) return null;
+    return { project, ...(await resolveRemote(mediaNames(project))) };
+  } catch { return null; }
+}
+
+/* --- modes & keys --- */
+function setMode(m){
+  mode = m;
+  $('#modeEdit').hidden = m !== 'edit'; $('#modePlay').hidden = m !== 'play'; $('#modeCourse').hidden = m !== 'course';
+  document.querySelectorAll('#seg button').forEach(b => b.setAttribute('aria-pressed', b.dataset.mode === m));
+  if (m !== 'play') { M.pause(); AU.stop(); S.started = false; S.active = null; clearOv(); vid.pause(); }
+  if (m === 'edit') requestAnimationFrame(() => { renderGraph(); renderInspector(); if (needFit) fit(); });
+  if (m === 'course') renderCourse(true);
+}
+document.querySelectorAll('#seg button').forEach(b => b.onclick = () => b.dataset.mode === 'play' ? (mode !== 'play' && enterPlay()) : setMode(b.dataset.mode));
+
+function toGallery(){ location.href = 'index.html'; }
+function goFullscreen(){ try { const r = document.documentElement.requestFullscreen; if (r && !document.fullscreenElement) r.call(document.documentElement).catch(() => {}); } catch {} }
+let wasFs = false;
+document.addEventListener('fullscreenchange', () => { const fs = !!document.fullscreenElement; if (KIOSK && wasFs && !fs) toGallery(); wasFs = fs; });
+document.addEventListener('keydown', e => {
+  if (KIOSK && e.code === 'Escape') { e.preventDefault(); toGallery(); return; }
+  const om = document.querySelector('.modal:not([hidden])'); if (om) { if (e.code === 'Escape') om.hidden = true; return; }
+  const typing = e.target.matches('textarea,input,select');
+  if (mode === 'play') {
+    if (typing) return;
+    const a = S.active;
+    if (a && !S.paused && a.kind === 'qte' && e.code === (a.ev.key || 'Space')) { e.preventDefault(); if (!e.repeat) qteHit(); return; }
+    if (a && !S.paused && a.kind === 'choice' && /^Digit[1-9]$/.test(e.code)) { const k = +e.code.slice(5) - 1; if (a.opts[k]) pickChoice(k); return; }
+    if ((e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') && !e.target.closest('button') && nextLine()) { e.preventDefault(); return; }
+    if (e.code === 'KeyP') $('#btnPause').click();
+    return;
+  }
+  if (typing) return;
+  const mod = e.ctrlKey || e.metaKey;
+  if (mod && e.code === 'KeyZ') { e.preventDefault(); e.shiftKey ? redoAct() : undoAct(); }
+  else if (mod && e.code === 'KeyY') { e.preventDefault(); redoAct(); }
+  else if (mod && e.code === 'KeyD' && sel) { e.preventDefault(); dupScene(sel); }
+  else if ((e.code === 'Delete' || e.code === 'Backspace') && sel) { e.preventDefault(); deleteScene(sel); }
+  else if (e.code === 'KeyF' && !mod) fit();
+  else if (e.code === 'Escape') select(null);
+  else if (e.code === 'Enter' && e.target.closest('.gnode')) select(e.target.closest('.gnode').dataset.id);
+});
+
+let last = performance.now();
+function frame(now){
+  const dt = Math.min(.1, (now - last) / 1000); last = now;
+  if (mode === 'play') {
+    AU.tick(dt);
+    if (P && S.started && !S.over) { if (!S.paused) { M.advance(dt); tickActive(dt); } checkEvents(); syncHotspots(); syncLines(); }
+    if (M.mode === 'demo') drawDemo(now);
+    const t = M.time(), d = M.duration();
+    $('#hudTc').textContent = `${fmt(t)} / ${isFinite(d) ? fmt(d) : '--:--'}`;
+    $('#hudScene').textContent = S.id ? (P.scenes[S.id]?.title || S.id) : (P.title || '—');
+    $('#progBar').style.width = (d && S.started ? Math.min(100, t / d * 100) : 0) + '%';
+  }
+  requestAnimationFrame(frame);
+}
+
+/* ================= COURSE (shared storage, roles, submissions) ================= */
+const C = { state:'off', db:null, user:null, assets:null, uid:null, teacher:false, canWrite:null,
+  assignments:[], index:null, indexLoaded:false, myReviews:{}, all:{}, allReviews:{}, names:{}, namesPending:false,
+  link:null, reviewing:null, stash:null, cloud:'idle', tab:'subs', fStatus:'submitted', fAsg:'all',
+  gradeOpen:null, confirmDel:null, editAsg:null, usage:null, usageLoaded:false, needs:false, lastUpload:'' };
+const KEY_LINK = 'rozvylka.cloud.v1';
+const ACCEPT = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', gif:'image/gif', webp:'image/webp', mp4:'video/mp4', webm:'video/webm' };
+const cloudFiles = new Set();
+const extOf = n => String(n).split('.').pop().toLowerCase();
+const fmtDate = t => t ? new Date(t).toLocaleString('uk-UA', { day:'numeric', month:'short', hour:'2-digit', minute:'2-digit' }) : '—';
+const fmtDay = d => d ? new Date(d + 'T00:00').toLocaleDateString('uk-UA', { day:'numeric', month:'long' }) : '';
+const fmtMB = b => (b / 1048576).toFixed(b < 10485760 ? 1 : 0) + ' МБ';
+function dbErr(e){
+  const c = e && e.code;
+  if (c === 'quota_exceeded') return 'Сховище курсу заповнене. Видаліть старі роботи.';
+  if (c === 'invalid_argument') return 'Запис не прийнято: немає права запису або проєкт завеликий.';
+  if (c === 'revoked') return 'Доступ до курсу змінився. Перезавантажте сторінку.';
+  return 'Не вдалося зберегти. Перевірте з\'єднання і спробуйте ще раз.';
+}
+const queues = {};
+function serial(key, fn){ const run = () => fn(); const p = (queues[key] || Promise.resolve()).then(run, run); queues[key] = p.catch(() => {}); return p; }
+function saveLink(){ try { if (C.link) localStorage.setItem(KEY_LINK, JSON.stringify({ pid:C.link.pid, assignment:C.link.assignment, media:C.link.media })); else localStorage.removeItem(KEY_LINK); } catch {} }
+function mediaNames(p){
+  const s = new Set(); if (typeof p.music === 'string' && p.music) s.add(p.music); if (typeof p.cover === 'string' && p.cover) s.add(p.cover);
+  for (const sc of Object.values(p.scenes || {})) { ['video','image','voice','music'].forEach(k => { if (typeof sc[k] === 'string' && sc[k]) s.add(sc[k]); }); if (sc.end && sc.end.loop) s.add(sc.end.loop); }
+  return [...s];
+}
+function applyMedia(m){
+  for (const n of cloudFiles) if (!fileObjs.has(n)) files.delete(n);
+  cloudFiles.clear();
+  for (const [n, id] of Object.entries(m || {})) if (!fileObjs.has(n)) { files.set(n, '/_blob/' + id); cloudFiles.add(n); }
+  updateMediaList();
+}
+function setCloud(st){ C.cloud = st; updateCloudChip(); }
+function updateCloudChip(){
+  const el = $('#cloudChip');
+  if (!['ready','slow','loading'].includes(C.state)) { el.hidden = true; return; }
+  el.hidden = false;
+  const [txt, cls] = C.reviewing ? ['☁ Перегляд роботи', 'on'] : !C.link ? ['☁ Не в курсі', ''] :
+    C.cloud === 'busy' ? ['☁ Зберігаю…', 'busy'] : C.cloud === 'dirty' ? ['☁ Є зміни', 'busy'] : C.cloud === 'err' ? ['☁ Не збережено', 'err'] : ['☁ У курсі', 'on'];
+  el.textContent = txt; el.className = 'cloud ' + cls;
+}
+$('#cloudChip').onclick = () => setMode('course');
+
+async function courseInit(){
+  if (!window.claude || typeof window.claude.use !== 'function') { C.state = 'local'; return; }
+  C.state = 'loading'; renderCourse();
+  const timer = setTimeout(() => { if (C.state === 'loading') { C.state = 'slow'; renderCourse(); } }, 10000);
+  const [db, user] = await Promise.all([claude.use('db'), claude.use('user')]);
+  if (!db || !user) { clearTimeout(timer); C.state = 'nodb'; renderCourse(); updateCloudChip(); return; }
+  C.db = db; C.user = user;
+  C.uid = await user.id(); C.teacher = await user.canEdit(); C.canWrite = await user.can('data.write');
+  claude.use('assets').then(a => { C.assets = a; renderCourse(); });
+  if (!C.uid) { clearTimeout(timer); C.state = 'noid'; renderCourse(); updateCloudChip(); return; }
+  const ok = snap => { if (!snap.metadata.fromCache && C.state !== 'ready') { clearTimeout(timer); C.state = 'ready'; updateCloudChip(); } };
+  const fail = e => { clearTimeout(timer); C.state = 'error'; C.err = e; renderCourse(); updateCloudChip(); };
+  db.collection('assignments').onSnapshot(s => { C.assignments = s.docs.map(d => ({ id:d.id, ...d.data() })).sort((a, b) => (a.order || 0) - (b.order || 0)); ok(s); renderCourse(); }, fail);
+  db.doc('works/' + C.uid).onSnapshot(s => { C.index = s.exists ? s.data() : null; C.indexLoaded = true; ok(s); renderCourse(); }, fail);
+  db.doc('reviews/' + C.uid).onSnapshot(s => { C.myReviews = (s.exists && s.data().items) || {}; renderCourse(); }, () => {});
+  if (C.teacher) {
+    db.collection('works').onSnapshot(s => { C.all = Object.fromEntries(s.docs.map(d => [d.id, d.data()])); renderCourse(); }, () => {});
+    db.collection('reviews').onSnapshot(s => { C.allReviews = Object.fromEntries(s.docs.map(d => [d.id, d.data().items || {}])); renderCourse(); }, () => {});
+  } else C.tab = 'mine';
+  if (C.link) applyMedia(C.link.media);
+  updateCloudChip();
+}
+
+/* --- student: save / media / submit --- */
+let cloudT = null;
+function cloudDirty(){ if (!C.link || C.reviewing || !C.db) return; setCloud('dirty'); clearTimeout(cloudT); cloudT = setTimeout(() => cloudSave(), 4000); }
+async function cloudSave(force){
+  if (ZR.open) { note('Спершу закрийте режим перегляду.'); return false; }
+  if (!C.db || !C.uid || C.reviewing) return false;
+  if (!C.indexLoaded) { note('Курс ще завантажується, спробуйте за мить.'); return false; }
+  clearTimeout(cloudT); endBurst();
+  const json = JSON.stringify(P);
+  if (json.length > 240000) { setCloud('err'); note('Проєкт завеликий для курсу (понад 240 КБ тексту). Скоротіть описи.'); return false; }
+  if (!C.link) C.link = { pid: C.db.collection(`works/${C.uid}/projects`).doc().id, assignment:null, media:{} };
+  if (!force && C.link.lastJson === json) { setCloud('ok'); return true; }
+  const { pid } = C.link, now = Date.now(), title = P.title || 'Без назви';
+  setCloud('busy');
+  try {
+    await serial('p' + pid, () => C.db.doc(`works/${C.uid}/projects/${pid}`).set({ title, assignment:C.link.assignment || null, project:JSON.parse(json), media:C.link.media || {}, updatedAt:now }));
+    const summary = { title, assignment:C.link.assignment || null, updatedAt:now, scenes:Object.keys(P.scenes).length };
+    await serial('idx', () => C.index ? C.db.doc('works/' + C.uid).update({ updatedAt:now, items:{ [pid]:summary } })
+                                      : C.db.doc('works/' + C.uid).set({ updatedAt:now, items:{ [pid]:summary } }));
+    C.link.lastJson = json; saveLink(); setCloud(JSON.stringify(P) === json ? 'ok' : 'dirty'); renderCourse(); return true;
+  } catch (e) { setCloud('err'); note(dbErr(e)); return false; }
+}
+function pendingMedia(){
+  const media = (C.link && C.link.media) || {};
+  return mediaNames(P).filter(n => !media[n]).map(n => {
+    const f = fileObjs.get(n), type = ACCEPT[extOf(n)];
+    const why = !type ? (isAud(n) ? 'аудіо поки не можна завантажити в курс' : 'формат не підтримується') : !f ? 'файл не підключено' : f.size > 20971520 ? 'понад 20 МБ' : '';
+    return { n, f, type, why };
+  });
+}
+async function uploadMedia(){
+  if (!C.assets) return note('Завантаження медіа недоступне з вашим рівнем доступу.');
+  if (!C.link && !(await cloudSave(true))) return;
+  let up = 0; const skipped = [];
+  for (const m of pendingMedia()) {
+    if (m.why) { skipped.push(`${m.n}: ${m.why}`); continue; }
+    note(`Завантажую ${m.n}…`);
+    try { const r = await C.assets.upload(m.f, { type:m.type }); C.link.media[m.n] = r.id; up++; }
+    catch (e) {
+      skipped.push(`${m.n}: ${e.code === 'too_large' ? 'завеликий' : e.code === 'quota_or_state' ? 'сховище заповнене' : e.code === 'unsupported_type' ? 'формат не прийнято' : 'помилка завантаження'}`);
+      if (e.code === 'rate_limited' || e.code === 'quota_or_state') break;
+    }
+  }
+  applyMedia(C.link.media); saveLink(); await cloudSave(true);
+  C.lastUpload = `Завантажено файлів: ${up}.` + (skipped.length ? ` Не завантажено: ${skipped.join('; ')}.` : '');
+  note(C.lastUpload); renderCourse();
+}
+async function submitWork(){
+  if (!(await cloudSave(true))) return;
+  const { pid } = C.link, now = Date.now();
+  try {
+    await serial('s' + pid, () => C.db.doc(`works/${C.uid}/submitted/${pid}`).set({ title:P.title || 'Без назви', assignment:C.link.assignment || null, project:clone(P), media:C.link.media || {}, at:now }));
+    await serial('idx', () => C.db.doc('works/' + C.uid).update({ items:{ [pid]:{ submittedAt:now } } }));
+    note('Роботу здано. Викладач бачить саме цю версію.');
+  } catch (e) { note(dbErr(e)); }
+}
+async function withdrawWork(pid){
+  try {
+    await serial('s' + pid, () => C.db.doc(`works/${C.uid}/submitted/${pid}`).delete());
+    await serial('idx', () => C.db.doc('works/' + C.uid).update({ items:{ [pid]:{ submittedAt:null } } }));
+    note('Здачу відкликано.');
+  } catch (e) { note(dbErr(e)); }
+}
+async function openOwn(pid){
+  try {
+    const s = await C.db.doc(`works/${C.uid}/projects/${pid}`).get();
+    if (!s.exists) return note('Роботу не знайдено.');
+    const d = s.data();
+    C.link = { pid, assignment:d.assignment || null, media:{ ...(d.media || {}) } };
+    applyMedia(C.link.media);
+    replaceProject(clone(d.project), true);
+    C.link.lastJson = JSON.stringify(P); saveLink(); setCloud('ok');
+    setMode('edit'); note(`Відкрито «${d.title || 'Без назви'}» з курсу.`);
+  } catch (e) { note(dbErr(e)); }
+}
+async function deleteOwn(pid){
+  const items = { ...((C.index && C.index.items) || {}) }; delete items[pid];
+  try {
+    await serial('p' + pid, () => C.db.doc(`works/${C.uid}/projects/${pid}`).delete());
+    await serial('s' + pid, () => C.db.doc(`works/${C.uid}/submitted/${pid}`).delete());
+    await serial('idx', () => C.db.doc('works/' + C.uid).set({ ...(C.index || {}), items, updatedAt:Date.now() }));
+    if (C.link && C.link.pid === pid) { C.link = null; saveLink(); updateCloudChip(); }
+    note('Роботу видалено з курсу. Локальна чернетка залишилась.');
+  } catch (e) { note(dbErr(e)); }
+}
+
+/* --- teacher: review, grade, assignments --- */
+async function reviewOpen(uid, pid, which){
+  try {
+    let s = await C.db.doc(`works/${uid}/${which === 'draft' ? 'projects' : 'submitted'}/${pid}`).get();
+    if (!s.exists) return note('Цієї версії роботи немає.');
+    const d = s.data();
+    if (!C.reviewing) C.stash = { P:JSON.stringify(P), link:C.link, undo:[...undo], redo:[...redo], cur };
+    clearTimeout(cloudT);
+    C.reviewing = { uid, pid, which, title:d.title || 'Без назви' };
+    C.link = null;
+    applyMedia(d.media);
+    replaceProject(clone(d.project), true);
+    renderBanner(); updateCloudChip(); enterPlay();
+  } catch (e) { note(dbErr(e)); }
+}
+function reviewClose(silent){
+  const st = C.stash; if (!C.reviewing || !st) return;
+  C.reviewing = null; C.stash = null;
+  P = JSON.parse(st.P); C.link = st.link; undo = st.undo; redo = st.redo; cur = st.cur;
+  applyMedia(C.link ? C.link.media : {});
+  sel = null; hsSel = null; seenEver.clear(); endingsFound.clear();
+  renderBanner(); updateCloudChip(); updateUndoUi(); updateTitle();
+  if (!silent) setMode('course');
+  renderGraph(); renderInspector(); if (mode === 'edit') fit(); else needFit = true;
+}
+function renderBanner(){
+  const b = $('#reviewBanner'), r = C.reviewing;
+  if (!r) { b.hidden = true; b.innerHTML = ''; return; }
+  const name = (C.names[r.uid] && C.names[r.uid].name) || 'Студент';
+  b.hidden = false;
+  b.innerHTML = `<span>Робота: <b>${esc(name)}</b> · «${esc(r.title)}» · ${r.which === 'draft' ? 'поточна чернетка' : 'здана версія'}. Зміни тут не зберігаються.</span>
+    <button class="btn small primary" data-rb="grade">Оцінити</button><button class="btn small" data-rb="close">Закрити перегляд</button>`;
+}
+$('#reviewBanner').addEventListener('click', e => {
+  const b = e.target.closest('[data-rb]'); if (!b || !C.reviewing) return;
+  if (b.dataset.rb === 'grade') { C.gradeOpen = C.reviewing.uid + '/' + C.reviewing.pid; C.tab = 'subs'; setMode('course'); }
+  else reviewClose();
+});
+async function saveGrade(uid, pid, grade, comment){
+  const items = { ...(C.allReviews[uid] || {}) };
+  if (!grade && !comment) delete items[pid]; else items[pid] = { grade, comment, at:Date.now() };
+  try { await serial('r' + uid, () => C.db.doc('reviews/' + uid).set({ items })); C.gradeOpen = null; note('Оцінку збережено. Студент бачить її у себе.'); renderCourse(true); }
+  catch (e) { note(dbErr(e)); }
+}
+async function saveAssignment(id, data){
+  try {
+    if (id) await serial('a' + id, () => C.db.doc('assignments/' + id).update(data));
+    else await C.db.collection('assignments').add({ ...data, order:Date.now() });
+    C.editAsg = null; renderCourse(true);
+  } catch (e) { note(dbErr(e)); }
+}
+
+/* --- render --- */
+function asgTitle(id){ const a = C.assignments.find(x => x.id === id); return a ? a.title : (id ? 'завдання видалено' : 'без завдання'); }
+function statusChip(it, rv){
+  if (rv && (rv.grade || rv.comment)) return `<span class="st ok">оцінено${rv.grade ? ': ' + esc(rv.grade) : ''}</span>`;
+  if (it.submittedAt) return it.updatedAt > it.submittedAt + 1000 ? `<span class="st chg">здано · є нові зміни</span>` : `<span class="st sub">здано</span>`;
+  return '<span class="st">чернетка</span>';
+}
+function asgOptions(v){ return `<option value="">— без завдання —</option>` + C.assignments.map(a => `<option value="${esc(a.id)}"${a.id === v ? ' selected' : ''}>${esc(a.title)}</option>`).join(''); }
+function stateMessage(){
+  const msgs = {
+    local: ['Курс працює в опублікованій версії', 'Цей файл відкрито з комп\'ютера, тому спільного сховища тут немає. Відкрийте «Розвилку» на claude.ai, щоб зберігати й здавати роботи. Редактор і перегляд працюють і тут.'],
+    loading: ['Підключаю курс…', 'Завантажую завдання та роботи.'],
+    slow: ['Дані курсу поки недоступні', 'Не вдається з\'єднатися зі сховищем. Перевірте інтернет; сторінка продовжує пробувати.'],
+    nodb: ['Курс недоступний', 'Увійдіть у claude.ai своїм університетським акаунтом. Якщо ви вже увійшли, попросіть викладача відкрити вам доступ до цієї сторінки.'],
+    noid: ['Курс недоступний', 'Платформа не визначила ваш акаунт на цій сторінці. Увійдіть у claude.ai акаунтом організації.'],
+    error: ['Помилка курсу', 'Не вдалося прочитати дані курсу. Перезавантажте сторінку.'],
+    off: ['Курс', '']
+  };
+  const [h, p] = msgs[C.state] || msgs.off;
+  return `<section class="cpanel"><h3 class="ititle">${h}</h3><p class="hint">${p}</p></section>`;
+}
+function currentCard(){
+  const n = Object.keys(P.scenes).length, it = C.link && C.index && C.index.items && C.index.items[C.link.pid];
+  const pend = pendingMedia(), canUp = pend.filter(m => !m.why).length;
+  if (!C.link) return `<div class="card"><div class="card-h">Відкрито зараз: «${esc(P.title || 'Без назви')}» · ${n} сцен</div>
+      <p class="hint">Ця історія є тільки у вашому браузері. Збережіть її в курс, щоб не втратити та мати змогу здати.</p>
+      ${F('Завдання', `<select data-cf="newAsg">${asgOptions(C.newAsg)}</select>`)}
+      <div class="row"><button class="btn small primary" data-c="saveNew">Зберегти в курс</button></div></div>`;
+  return `<div class="card"><div class="card-h">Відкрито зараз: «${esc(P.title || 'Без назви')}» · ${n} сцен ${it ? statusChip(it, C.myReviews[C.link.pid]) : ''}</div>
+    <p class="meta">${C.cloud === 'ok' ? 'Збережено в курсі' : C.cloud === 'busy' ? 'Зберігаю…' : C.cloud === 'err' ? 'Останнє збереження не вдалося' : 'Зміни збережуться автоматично за кілька секунд'}${it ? ' · ' + fmtDate(it.updatedAt) : ''}</p>
+    ${F('Завдання', `<select data-cf="asg">${asgOptions(C.link.assignment)}</select>`)}
+    ${pend.length ? `<div class="warnbox">Викладач не побачить ${pend.length} медіафайл(ів), поки їх не завантажено в курс:<br>${pend.map(m => esc(m.n) + (m.why ? ` (${m.why})` : '')).join(', ')}</div>` : ''}
+    ${C.lastUpload ? `<p class="meta">${esc(C.lastUpload)}</p>` : ''}
+    <div class="row"><button class="btn small" data-c="saveNow">Зберегти зараз</button>
+      ${C.assets ? `<button class="btn small" data-c="upload"${canUp ? '' : ' disabled'}>Завантажити медіа${canUp ? ` (${canUp})` : ''}</button>` : ''}
+      <button class="btn small primary" data-c="submit">${it && it.submittedAt ? 'Здати оновлену версію' : 'Здати роботу'}</button>
+      ${it && it.submittedAt ? `<button class="btn small" data-c="withdraw" data-pid="${esc(C.link.pid)}">Відкликати здачу</button>` : ''}</div></div>`;
+}
+function myWorks(){
+  const items = Object.entries((C.index && C.index.items) || {}).sort((a, b) => (b[1].updatedAt || 0) - (a[1].updatedAt || 0));
+  const list = items.map(([pid, it]) => {
+    const rv = C.myReviews[pid], cur = C.link && C.link.pid === pid;
+    return `<div class="witem${cur ? ' cur' : ''}"><div><h5>${esc(it.title || 'Без назви')}</h5>
+        <div class="meta">${esc(asgTitle(it.assignment))} · ${it.scenes || 0} сцен · змінено ${fmtDate(it.updatedAt)}${it.submittedAt ? ' · здано ' + fmtDate(it.submittedAt) : ''}</div></div>
+      <div class="row">${statusChip(it, rv)}</div>
+      ${rv && (rv.grade || rv.comment) ? `<div class="rev">${rv.grade ? `<b>Оцінка: ${esc(rv.grade)}</b>\n` : ''}${esc(rv.comment || '')}</div>` : ''}
+      <div class="row" style="grid-column:1/-1">${cur ? '<span class="meta">Відкрито в редакторі</span>' : `<button class="btn small" data-c="open" data-pid="${esc(pid)}">Відкрити</button>`}
+        ${C.confirmDel === pid ? `<span class="meta">Видалити з курсу?</span><button class="btn small danger" data-c="delYes" data-pid="${esc(pid)}">Так, видалити</button><button class="btn small" data-c="delNo">Ні</button>`
+          : `<button class="btn small danger" data-c="del" data-pid="${esc(pid)}">Видалити</button>`}</div></div>`;
+  }).join('');
+  return `<section class="cpanel"><h3 class="ititle">Мої роботи</h3>
+    ${C.canWrite === false ? '<div class="warnbox">У вас доступ лише для перегляду. Попросіть викладача дати вам рівень Contributor, щоб зберігати й здавати роботи.</div>' : ''}
+    ${C.reviewing ? '<p class="hint">Зараз відкрита робота студента. Закрийте перегляд, щоб повернутися до своєї.</p>' : currentCard()}
+    <h4>Збережені в курсі</h4>
+    <div class="wlist">${list || '<p class="hint">Тут з\'являться ваші збережені роботи.</p>'}</div></section>`;
+}
+function assignmentsPanel(){
+  const mineCount = id => Object.values((C.index && C.index.items) || {}).filter(it => it.assignment === id).length;
+  const list = C.assignments.map(a => {
+    if (C.teacher && C.editAsg === a.id) return asgForm(a);
+    return `<div class="asg"><h5>${esc(a.title)}</h5>${a.due ? `<span class="meta">Здати до ${esc(fmtDay(a.due))}</span>` : ''}${a.text ? `<p>${esc(a.text)}</p>` : ''}
+      ${C.teacher ? `<div class="row">${C.confirmDel === 'a:' + a.id ? `<button class="btn small danger" data-c="asgDelYes" data-id="${esc(a.id)}">Так, видалити</button><button class="btn small" data-c="delNo">Ні</button>`
+        : `<button class="btn small" data-c="asgEdit" data-id="${esc(a.id)}">Змінити</button><button class="btn small danger" data-c="asgDel" data-id="${esc(a.id)}">Видалити</button>`}</div>`
+        : `<span class="meta">Ваших робіт: ${mineCount(a.id)}</span>`}</div>`;
+  }).join('');
+  return `<aside class="cpanel"><h3 class="ititle">Завдання</h3>
+    <div>${list || `<p class="hint">${C.teacher ? 'Додайте перше завдання, і студенти зможуть прив\'язувати до нього роботи.' : 'Викладач ще не додав завдань.'}</p>`}</div>
+    ${C.teacher && C.editAsg === 'new' ? asgForm({}) : C.teacher ? '<div class="row"><button class="btn small" data-c="asgNew">+ Завдання</button></div>' : ''}
+    ${C.teacher ? teacherSide() : ''}</aside>`;
+}
+function asgForm(a){
+  return `<div class="card" id="asgForm">${F('Назва', `<input id="asgTitle" value="${esc(a.title || '')}" placeholder="Лаб. 1: розгалуження з трьома фіналами">`)}
+    ${F('Опис', `<textarea id="asgText" placeholder="Що треба зробити">${esc(a.text || '')}</textarea>`)}
+    ${F('Здати до', `<input type="date" id="asgDue" value="${esc(a.due || '')}">`)}
+    <div class="row"><button class="btn small primary" data-c="asgSave" data-id="${esc(a.id || '')}">Зберегти</button><button class="btn small" data-c="asgCancel">Скасувати</button></div></div>`;
+}
+function teacherSide(){
+  if (C.assets && !C.usageLoaded) { C.usageLoaded = true; C.assets.list().then(r => { C.usage = r.usage; renderCourse(); }).catch(() => {}); }
+  const u = C.usage;
+  return `<section class="sec"><h4>Доступ студентів</h4>
+      <p class="hint">Відкрийте меню «Поділитися» цієї сторінки й дайте студентам рівень <b>Contributor</b> (або відкрийте доступ для організації з цим рівнем). Студенти бачать лише власні роботи й оцінки; ви та редактори бачите всі.</p></section>
+    <section class="sec"><h4>Медіа в сховищі</h4>${u ? `<div class="meter"><i style="width:${Math.min(100, u.bytes / u.maxBytes * 100)}%"></i></div><span class="meta">${fmtMB(u.bytes)} з ${fmtMB(u.maxBytes)} · файлів: ${u.files} з ${u.maxFiles}</span>` : '<span class="meta">—</span>'}</section>`;
+}
+function submissionsPanel(){
+  const rows = [];
+  for (const [uid, idx] of Object.entries(C.all)) for (const [pid, it] of Object.entries((idx && idx.items) || {})) {
+    const rv = (C.allReviews[uid] || {})[pid];
+    if (C.fStatus === 'submitted' && !it.submittedAt) continue;
+    if (C.fStatus === 'ungraded' && (!it.submittedAt || (rv && (rv.grade || rv.comment)))) continue;
+    if (C.fAsg !== 'all' && (it.assignment || '') !== (C.fAsg === 'none' ? '' : C.fAsg)) continue;
+    rows.push({ uid, pid, it, rv });
+  }
+  rows.sort((a, b) => (b.it.submittedAt || b.it.updatedAt || 0) - (a.it.submittedAt || a.it.updatedAt || 0));
+  const ids = Object.keys(C.all);
+  if (C.user && !C.namesPending && ids.some(id => !C.names[id])) {
+    C.namesPending = true;
+    C.user.profiles(ids).then(ps => { C.names = { ...C.names, ...ps }; C.namesPending = false; renderCourse(); renderBanner(); });
+  }
+  const tr = rows.map(({ uid, pid, it, rv }) => {
+    const p = C.names[uid] || {}, key = uid + '/' + pid;
+    const main = `<tr><td><div class="who"><img src="${esc(p.avatarUrl || '')}" alt=""><div>${esc(p.name || 'Студент')}${p.email ? `<small>${esc(p.email)}</small>` : ''}</div></div></td>
+      <td><b>${esc(it.title || 'Без назви')}</b><div class="meta">${it.scenes || 0} сцен</div></td>
+      <td>${esc(asgTitle(it.assignment))}</td>
+      <td>${statusChip(it, null)}<div class="meta">${it.submittedAt ? 'здано ' + fmtDate(it.submittedAt) : 'змінено ' + fmtDate(it.updatedAt)}</div></td>
+      <td>${rv && rv.grade ? `<b>${esc(rv.grade)}</b>` : rv && rv.comment ? 'коментар' : '—'}</td>
+      <td><div class="row">${it.submittedAt ? `<button class="btn small primary" data-c="rev" data-uid="${esc(uid)}" data-pid="${esc(pid)}" data-w="sub">Переглянути</button>` : ''}
+        <button class="btn small" data-c="rev" data-uid="${esc(uid)}" data-pid="${esc(pid)}" data-w="draft">Чернетка</button>
+        <button class="btn small" data-c="grade" data-key="${esc(key)}">${rv ? 'Змінити оцінку' : 'Оцінити'}</button></div></td></tr>`;
+    const form = C.gradeOpen === key ? `<tr class="gr"><td colspan="6"><div class="gform">
+        ${F('Оцінка', `<input id="gGrade" value="${esc((rv && rv.grade) || '')}" placeholder="92 або «зараховано»">`)}
+        ${F('Коментар для студента', `<textarea id="gComment" placeholder="Що вдалося, що варто покращити">${esc((rv && rv.comment) || '')}</textarea>`)}
+        <div class="row"><button class="btn small primary" data-c="gradeSave" data-uid="${esc(uid)}" data-pid="${esc(pid)}">Зберегти</button><button class="btn small" data-c="gradeCancel">Скасувати</button></div></div></td></tr>` : '';
+    return main + form;
+  }).join('');
+  const students = Object.keys(C.all).filter(u => u !== C.uid).length;
+  return `<section class="cpanel"><h3 class="ititle">Роботи студентів</h3>
+    <div class="row">
+      <label class="f" style="flex-direction:row;align-items:center;gap:8px"><span>Показати</span><select data-cf="fStatus">
+        <option value="submitted"${C.fStatus === 'submitted' ? ' selected' : ''}>Здані</option>
+        <option value="ungraded"${C.fStatus === 'ungraded' ? ' selected' : ''}>Здані без оцінки</option>
+        <option value="all"${C.fStatus === 'all' ? ' selected' : ''}>Усі, разом із чернетками</option></select></label>
+      <label class="f" style="flex-direction:row;align-items:center;gap:8px"><span>Завдання</span><select data-cf="fAsg">
+        <option value="all"${C.fAsg === 'all' ? ' selected' : ''}>Усі</option><option value="none"${C.fAsg === 'none' ? ' selected' : ''}>Без завдання</option>
+        ${C.assignments.map(a => `<option value="${esc(a.id)}"${C.fAsg === a.id ? ' selected' : ''}>${esc(a.title)}</option>`).join('')}</select></label>
+      <span class="meta">Студентів з роботами: ${students}</span></div>
+    ${rows.length ? `<div class="tablewrap"><table class="subs"><thead><tr><th>Студент</th><th>Робота</th><th>Завдання</th><th>Статус</th><th>Оцінка</th><th></th></tr></thead><tbody>${tr}</tbody></table></div>`
+      : `<p class="hint">${C.fStatus === 'all' ? 'Студенти ще не зберегли жодної роботи.' : 'Немає робіт за цим фільтром.'}</p>`}</section>`;
+}
+function renderCourse(force){
+  const box = $('#modeCourse');
+  if (mode !== 'course') { C.needs = true; return; }
+  const ae = document.activeElement;
+  if (!force && ae && box.contains(ae) && ae.matches('input,textarea,select')) { C.needs = true; return; }
+  C.needs = false;
+  if (!['ready','slow'].includes(C.state) || !C.indexLoaded) { box.className = 'course one'; box.innerHTML = stateMessage(); return; }
+  box.className = 'course';
+  const tabs = C.teacher ? `<div class="ctabs"><button data-c="tab" data-v="subs" aria-pressed="${C.tab === 'subs'}">Роботи студентів</button><button data-c="tab" data-v="mine" aria-pressed="${C.tab === 'mine'}">Мої роботи</button></div>` : '';
+  const left = C.teacher && C.tab === 'subs' ? submissionsPanel() : myWorks();
+  box.innerHTML = left.replace('<section class="cpanel">', `<section class="cpanel">${tabs}`) + assignmentsPanel();
+  if (C.gradeOpen) $('#gGrade')?.focus();
+}
+$('#modeCourse').addEventListener('focusout', () => setTimeout(() => { if (C.needs) renderCourse(); }, 0));
+$('#modeCourse').addEventListener('change', e => {
+  const k = e.target.dataset.cf; if (!k) return;
+  const v = e.target.value;
+  if (k === 'asg' && C.link) { C.link.assignment = v || null; saveLink(); cloudSave(true); }
+  else if (k === 'newAsg') C.newAsg = v || null;
+  else if (k === 'fStatus') C.fStatus = v;
+  else if (k === 'fAsg') C.fAsg = v;
+  renderCourse(true);
+});
+$('#modeCourse').addEventListener('click', async e => {
+  const b = e.target.closest('[data-c]'); if (!b) return;
+  const c = b.dataset.c, pid = b.dataset.pid;
+  if (c === 'tab') { C.tab = b.dataset.v; }
+  else if (c === 'saveNew') { C.link = null; if (await cloudSave(true)) { C.link.assignment = C.newAsg || null; await cloudSave(true); note('Збережено в курс. Далі зміни зберігатимуться автоматично.'); } }
+  else if (c === 'saveNow') { await cloudSave(true); }
+  else if (c === 'upload') { b.disabled = true; await uploadMedia(); }
+  else if (c === 'submit') { b.disabled = true; await submitWork(); }
+  else if (c === 'withdraw') await withdrawWork(pid);
+  else if (c === 'open') { await openOwn(pid); return; }
+  else if (c === 'del') C.confirmDel = pid;
+  else if (c === 'delYes') { C.confirmDel = null; await deleteOwn(pid); }
+  else if (c === 'delNo') C.confirmDel = null;
+  else if (c === 'rev') { await reviewOpen(b.dataset.uid, pid, b.dataset.w); return; }
+  else if (c === 'grade') C.gradeOpen = b.dataset.key;
+  else if (c === 'gradeCancel') C.gradeOpen = null;
+  else if (c === 'gradeSave') { await saveGrade(b.dataset.uid, pid, $('#gGrade').value.trim(), $('#gComment').value.trim()); return; }
+  else if (c === 'asgNew') C.editAsg = 'new';
+  else if (c === 'asgEdit') C.editAsg = b.dataset.id;
+  else if (c === 'asgCancel') C.editAsg = null;
+  else if (c === 'asgSave') {
+    const title = $('#asgTitle').value.trim(); if (!title) { note('Вкажіть назву завдання.'); return; }
+    await saveAssignment(b.dataset.id, { title, text:$('#asgText').value.trim(), due:$('#asgDue').value || '' }); return;
+  }
+  else if (c === 'asgDel') C.confirmDel = 'a:' + b.dataset.id;
+  else if (c === 'asgDelYes') { C.confirmDel = null; try { await C.db.doc('assignments/' + b.dataset.id).delete(); } catch (err) { note(dbErr(err)); } }
+  renderCourse(true);
+});
+
+/* --- init --- */
+const QS = new URLSearchParams(location.search.slice(1)); new URLSearchParams(location.hash.slice(1)).forEach((v, k) => QS.set(k, v));
+let restored = false;
+try { const d = JSON.parse(localStorage.getItem(KEY_STORE)); if (d && d.scenes && Object.keys(d.scenes).length) { P = d; restored = true; } } catch {}
+if (!P) P = clone(DEMO);
+if (restored) { try { const l = JSON.parse(localStorage.getItem(KEY_LINK)); if (l && l.pid) C.link = { pid:l.pid, assignment:l.assignment || null, media:l.media || {} }; } catch {} }
+normalize(P);
+ensureLayout(); cur = JSON.stringify(P);
+renderGraph(); renderInspector(); applyView(); updateUndoUi(); updateTitle();
+requestAnimationFrame(() => fit());
+if (restored) {
+  const finish = () => { const left = mediaNames(P).filter(n => !files.has(n)); note('Відновлено вашу чернетку.' + (left.length ? ' Файли не зберігаються між сеансами: відкрийте свій ZIP або киньте файли у вікно.' : '')); };
+  const miss = mediaNames(P).filter(n => !files.has(n));
+  if (miss.length) resolveRemote(miss).then(r => { for (const [n, u] of Object.entries(r.found)) files.set(n, u); updateMediaList(); renderGraph(); renderInspector(); finish(); }).catch(finish);
+  else finish();
+} else if (!QS.has('level') && !QS.has('demo')) {
+  loadRepoDemo().then(r => {
+    if (!r || ZR.open || undo.length) return;
+    for (const [n, u] of Object.entries(r.found)) files.set(n, u);
+    showProject(r.project); requestAnimationFrame(() => fit());
+    if (r.missing.length) note(`У демо не знайдено файлів: ${r.missing.length} (${r.missing.slice(0, 3).join(', ')}${r.missing.length > 3 ? '…' : ''}). Перевірте імена у папці demo.`);
+  });
+}
+requestAnimationFrame(frame);
+courseInit();
+/* --- відкриття з галереї: editor.html?level=levels/файл.zip або ?demo --- */
+async function openLevel(path){
+  if (!/^levels\/[^?#]+\.zip$/i.test(path) || path.split('/').includes('..')) { window.KIOSK = false; document.documentElement.classList.remove('kiosk'); return note('Некоректне посилання на роботу.'); }
+  note('Завантажую роботу…');
+  try {
+    const r = await fetch(path); if (!r.ok) throw new Error(r.status === 404 ? 'файл не знайдено' : 'помилка ' + r.status);
+    const blob = await r.blob(), name = decodeURIComponent(path.split('/').pop());
+    await openReview([new File([blob], name, { type:'application/zip' })]);
+    if (!document.documentElement.classList.contains('kready')) throw new Error('файл пошкоджений');
+  } catch (e) { window.KIOSK = false; document.documentElement.classList.remove('kiosk'); note('Не вдалося завантажити роботу: ' + e.message); }
+}
+if (QS.has('level')) openLevel(QS.get('level')); else if (QS.has('demo')) showDemo();
+if (C.state === 'local') { const cb = document.querySelector('#seg [data-mode="course"]'); if (cb) cb.hidden = true; }
+</script>
+<noscript>Для роботи «Розвилки» потрібен JavaScript.</noscript>
+</body>
+</html>
