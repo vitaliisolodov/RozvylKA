@@ -164,6 +164,8 @@ html.kiosk:not(.kready) body::before{content:"Завантажую роботу�
 .hotspot{position:absolute;border:2px dashed rgba(240,166,58,.9);background:rgba(240,166,58,.12);border-radius:6px;cursor:pointer;display:flex;align-items:flex-end;justify-content:center;padding:4px;animation:hs 1.6s ease-in-out infinite}
 .hotspot span{background:rgba(17,19,27,.85);font-size:12px;padding:2px 6px;border-radius:3px;white-space:nowrap}
 .hotspot:hover{background:rgba(240,166,58,.25)}
+.keyrow{display:flex;gap:6px;align-items:center}
+.keyrow select{flex:1;min-width:0}
 .cap{position:absolute;left:clamp(10px,4%,48px);right:clamp(10px,4%,48px);bottom:clamp(10px,6%,40px);padding:clamp(10px,1.6vw,18px) clamp(14px,2.4vw,26px);background:rgba(10,11,16,.8);border:1px solid rgba(255,255,255,.12);border-radius:10px;pointer-events:none;font-size:clamp(14px,2.1vw,22px);line-height:1.45;white-space:pre-line;backdrop-filter:blur(4px);animation:capIn .25s ease-out}
 .cap b{display:block;font-family:var(--f-mono);font-weight:500;font-size:.62em;letter-spacing:.1em;text-transform:uppercase;color:var(--accent);margin-bottom:2px}
 @keyframes capIn{from{opacity:0;transform:translateY(6px)}}
@@ -423,7 +425,8 @@ project.music: музика з початку історії
 project.author, description, cover: початковий екран і картка в галереї
   lines[]           репліки-плашки {name, text, at}
 option: {label, goto, if, set, add}
-qte: {prompt, key, keyLabel, presses, window, success, fail, onFail}</pre>
+qte: {prompt, key, keyLabel, presses, window, success, fail, onFail}
+choice: hideOptions:true ховає кнопки, option.key (напр. "KeyW") — клавіша вибору</pre>
       </details>
     </div>
   </aside>
@@ -550,7 +553,14 @@ const esc = s => String(s ?? '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;
 const fmt = t => { t = Math.max(0, t || 0); return String(Math.floor(t/60)).padStart(2,'0') + ':' + String(Math.floor(t%60)).padStart(2,'0'); };
 const clamp = (v, a, b) => Math.min(b, Math.max(a, v));
 const KEY_STORE = 'rozvylka.draft.v1';
-const KEYS = { Space:'ПРОБІЛ', Enter:'ENTER', KeyE:'E', KeyF:'F', KeyQ:'Q', KeyR:'R', ArrowLeft:'←', ArrowRight:'→', ArrowUp:'↑', ArrowDown:'↓' };
+const KEY_GROUPS = [
+  ['Основні', { Space:'ПРОБІЛ', Enter:'ENTER', ShiftLeft:'SHIFT' }],
+  ['Стрілки', { ArrowLeft:'←', ArrowRight:'→', ArrowUp:'↑', ArrowDown:'↓' }],
+  ['Літери (за положенням на клавіатурі)', Object.fromEntries([...'WASDQERFZXCVTGBYUIOPHJKLNM'].map(c => ['Key' + c, c]))],
+  ['Цифри', Object.fromEntries([...'1234567890'].map(c => ['Digit' + c, c]))]
+];
+const KEYS = Object.assign({}, ...KEY_GROUPS.map(g => g[1]));
+const keyName = c => KEYS[c] || (/^Key[A-Z]$/.test(c) ? c.slice(3) : /^Digit\d$/.test(c) ? c.slice(5) : c);
 const PALETTE = ['#2d3a5c','#3a2f4f','#22402e','#5a3b2a','#24384a','#4a2a35','#4a4426','#2a4a5c'];
 
 let P = null, mode = 'edit';
@@ -748,9 +758,11 @@ function activate(ev, isEnd){
   const pause = !isEnd && ev.pause !== false;
   if (pause) M.pause();
   const el = document.createElement('div'); el.className = 'choice';
+  const hide = ev.hideOptions === true;
   el.innerHTML = `${ev.prompt ? `<h3>${esc(ev.prompt)}</h3>` : ''}
-    <div class="opts">${opts.map((o, k) => `<button class="opt" data-k="${k}"><kbd>${k+1}</kbd><span>${esc(o.label)}</span></button>`).join('')}</div>
+    ${hide ? '' : `<div class="opts">${opts.map((o, k) => `<button class="opt" data-k="${k}"><kbd>${o.key ? esc(keyName(o.key)) : k + 1}</kbd><span>${esc(o.label)}</span></button>`).join('')}</div>`}
     ${ev.timeout ? '<div class="timebar"><i></i></div>' : ''}`;
+  if (hide && !ev.prompt && !ev.timeout) el.style.display = 'none';
   ov.appendChild(el);
   el.querySelectorAll('.opt').forEach(b => b.onclick = () => pickChoice(+b.dataset.k));
   S.active = { kind:'choice', ev, isEnd, opts, el, pause, elapsed:0, bar: el.querySelector('.timebar i') };
@@ -1106,7 +1118,8 @@ function setPath(path, val, t){
   if (t === 'num' || t === 'numsel') { if (val === '' || val == null || isNaN(+val)) delete o[k]; else o[k] = +val; return; }
   if (t === 'bool') { o[k] = !!val; return; }
   if (t === 'musicoff') { if (val) o[k] = false; else delete o[k]; return; }
-  if (t === 'key') { o[k] = val; o.keyLabel = KEYS[val] || val; return; }
+  if (t === 'key') { if (!val) { delete o[k]; delete o.keyLabel; } else { o[k] = val; o.keyLabel = keyName(val); } return; }
+  if (t === 'showopts') { if (val) delete o[k]; else o[k] = true; return; }
   if (val === '') { if (k === 'goto' && o.type === 'goto') o[k] = ''; else delete o[k]; } else o[k] = val;
 }
 
@@ -1331,20 +1344,26 @@ const iNum = (p, v, ph = '', step = '0.1') => `<input type="number" inputmode="d
 const iArea = (p, v, ph = '') => `<textarea data-p="${PA(p)}" data-t="str" placeholder="${esc(ph)}">${esc(v ?? '')}</textarea>`;
 const iMedia = (p, v, ph, list) => `<input list="${list}" data-p="${PA(p)}" data-t="str" value="${esc(v ?? '')}" placeholder="${esc(ph)}">`;
 const iFx = (p, o) => `<input data-p="${PA(p)}" data-t="fx" value="${esc(fxToStr(o))}" placeholder="telefon=true, vidvaha+1">`;
-const iCheck = (p, v, label) => `<label class="f chk"><input type="checkbox" data-p="${PA(p)}" data-t="bool"${v ? ' checked' : ''}><span>${label}</span></label>`;
+const iCheck = (p, v, label, t = 'bool') => `<label class="f chk"><input type="checkbox" data-p="${PA(p)}" data-t="${t}"${v ? ' checked' : ''}><span>${label}</span></label>`;
 function iGoto(p, v, none){
   const opts = Object.entries(P.scenes).map(([id, s]) => `<option value="${esc(id)}"${id === v ? ' selected' : ''}>${esc(s.title || id)} · ${esc(id)}</option>`).join('');
   const bad = v && !P.scenes[v] ? `<option value="${esc(v)}" selected>⚠ ${esc(v)} (не існує)</option>` : '';
   return `<select data-p="${PA(p)}" data-t="goto"><option value=""${!v ? ' selected' : ''}>${none}</option>${bad}${opts}<option value="__new">+ Нова сцена…</option></select>`;
 }
-const iKey = (p, v) => `<select data-p="${PA(p)}" data-t="key">${Object.entries(KEYS).map(([k, l]) => `<option value="${k}"${k === (v || 'Space') ? ' selected' : ''}>${l}</option>`).join('')}</select>`;
+const iKey = (p, v, auto) => {
+  const cur = v || (auto ? '' : 'Space'), known = KEY_GROUPS.some(g => cur in g[1]);
+  return `<span class="keyrow"><select data-p="${PA(p)}" data-t="key">${auto ? `<option value=""${!cur ? ' selected' : ''}>${esc(auto)}</option>` : ''}${known || !cur ? '' : `<option value="${esc(cur)}" selected>${esc(keyName(cur))}</option>`}`
+    + KEY_GROUPS.map(([g, m]) => `<optgroup label="${g}">${Object.entries(m).map(([k, l]) => `<option value="${k}"${k === cur ? ' selected' : ''}>${l}</option>`).join('')}</optgroup>`).join('')
+    + `</select><button type="button" class="btn small" data-act="capKey" title="Натиснути потрібну клавішу на клавіатурі">⌨ Натиснути</button></span>`;
+};
 const iDefault = (p, v, opts) => `<select data-p="${PA(p)}" data-t="numsel"><option value="">${'нічого не обирати'}</option>${(opts || []).map((o, i) => `<option value="${i}"${+v === i && v != null ? ' selected' : ''}>${i + 1}. ${esc(o.label || 'варіант')}</option>`).join('')}</select>`;
 
 function optionsEditor(opts, p, none){
   return (opts || []).map((o, i) => `<div class="card"><button class="x" data-act="delAt" data-p="${PA(p)}" data-i="${i}" aria-label="Видалити варіант">×</button>
     ${F(`Варіант ${i + 1}`, iText([...p, i, 'label'], o.label, 'Текст кнопки'))}
     ${F('Веде до', iGoto([...p, i, 'goto'], o.goto, none))}
-    <div class="grid2">${F('Умова показу', iText([...p, i, 'if'], o.if, 'telefon, vidvaha>=2'))}${F('Ефект', iFx([...p, i], o))}</div></div>`).join('')
+    <div class="grid2">${F('Умова показу', iText([...p, i, 'if'], o.if, 'telefon, vidvaha>=2'))}${F('Ефект', iFx([...p, i], o))}</div>
+    ${F('Клавіша вибору', iKey([...p, i, 'key'], o.key, 'авто: ' + (i + 1)), 'Працює і при прихованих кнопках')}</div>`).join('')
     + `<div class="row"><button class="btn small" data-act="addOpt" data-p="${PA(p)}">+ Варіант</button></div>`;
 }
 function qteFields(ev, p, isEnd){
@@ -1358,6 +1377,7 @@ function qteFields(ev, p, isEnd){
 function endEditor(e, p){
   if (e.type === 'goto') return F('Наступна сцена', iGoto([...p, 'goto'], e.goto, '— не з\'єднано —'));
   if (e.type === 'choice') return F('Питання', iText([...p, 'prompt'], e.prompt, 'Що робиш?'))
+    + iCheck([...p, 'hideOptions'], !e.hideOptions, 'Показувати кнопки варіантів', 'showopts')
     + `<div class="grid2">${F('Таймер, с', iNum([...p, 'timeout'], e.timeout, 'без таймера', '1'))}${F('Коли час вийшов', iDefault([...p, 'default'], e.default, e.options))}</div>`
     + F('Відео під час вибору', iMedia([...p, 'loop'], e.loop, 'wait_loop.mp4', 'listVideo'), 'Крутиться по колу, поки глядач обирає')
     + optionsEditor(e.options, [...p, 'options'], '— фінал —');
@@ -1370,6 +1390,7 @@ function eventEditor(ev, p, i){
   if (ev.type === 'qte') return `<div class="card">${head}${at}${qteFields(ev, p, false)}</div>`;
   return `<div class="card">${head}<div class="grid2">${at}${F('Таймер, с', iNum([...p, 'timeout'], ev.timeout, 'без таймера', '1'))}</div>
     ${F('Питання', iText([...p, 'prompt'], ev.prompt, 'Хтось у кущах!'))}
+    ${iCheck([...p, 'hideOptions'], !ev.hideOptions, 'Показувати кнопки варіантів', 'showopts')}
     <div class="grid2">${F('Коли час вийшов', iDefault([...p, 'default'], ev.default, ev.options))}${iCheck([...p, 'pause'], ev.pause !== false, 'Зупиняти відео')}</div>
     ${optionsEditor(ev.options, [...p, 'options'], '— сцена триває —')}</div>`;
 }
@@ -1542,6 +1563,7 @@ insp.addEventListener('click', e => {
       (sc.events ||= []).push(v === 'qte' ? { at, type:'qte', prompt:'Швидше!', key:'Space', keyLabel:'ПРОБІЛ', window:2 }
         : { at, type:'choice', prompt:'', timeout:4, options:[{ label:'Так' }, { label:'Ні' }] }); }, false); re();
   }
+  else if (a === 'capKey') { stopCap(); capSel = { sel: b.parentElement.querySelector('select'), btn: b }; b.textContent = '…натисніть клавішу (Esc — скасувати)'; }
   else if (a === 'addLine') { edit(() => { (P.scenes[sel].lines ||= []).push({ text:'' }); }, false); re(); }
   else if (a === 'addHs') { edit(() => { const sc = P.scenes[sel]; (sc.hotspots ||= []).push({ label:'Об\'єкт', from:0, to: sc.duration || 6, x:.4, y:.4, w:.2, h:.2 }); hsSel = sc.hotspots.length - 1; }, false); re(); }
   else if (a === 'selHs') { hsSel = +v; renderInspector(); }
@@ -2068,6 +2090,17 @@ function setMode(m){
 }
 document.querySelectorAll('#seg button').forEach(b => b.onclick = () => b.dataset.mode === 'play' ? (mode !== 'play' && enterPlay()) : setMode(b.dataset.mode));
 
+let capSel = null;
+function stopCap(){ if (capSel) { capSel.btn.textContent = '⌨ Натиснути'; capSel = null; } }
+document.addEventListener('keydown', e => {
+  if (!capSel) return;
+  e.preventDefault(); e.stopPropagation();
+  if (e.code === 'Escape') return stopCap();
+  if (/^(Control|Alt|Meta)(Left|Right)$/.test(e.code) || e.code === 'Tab') return;
+  const sel = capSel.sel; let o = [...sel.options].find(x => x.value === e.code);
+  if (!o) { o = new Option(keyName(e.code), e.code); sel.add(o, sel.options[1] || null); }
+  sel.value = e.code; sel.dispatchEvent(new Event('change', { bubbles:true })); stopCap();
+}, true);
 function toGallery(){ location.href = 'index.html'; }
 function goFullscreen(){ try { const r = document.documentElement.requestFullscreen; if (r && !document.fullscreenElement) r.call(document.documentElement).catch(() => {}); } catch {} }
 let wasFs = false;
@@ -2080,7 +2113,10 @@ document.addEventListener('keydown', e => {
     if (typing) return;
     const a = S.active;
     if (a && !S.paused && a.kind === 'qte' && e.code === (a.ev.key || 'Space')) { e.preventDefault(); if (!e.repeat) qteHit(); return; }
-    if (a && !S.paused && a.kind === 'choice' && /^Digit[1-9]$/.test(e.code)) { const k = +e.code.slice(5) - 1; if (a.opts[k]) pickChoice(k); return; }
+    if (a && !S.paused && a.kind === 'choice') {
+      const k = a.opts.findIndex((o, i) => o.key ? o.key === e.code : (e.code === 'Digit' + (i + 1) || e.code === 'Numpad' + (i + 1)));
+      if (k >= 0) { e.preventDefault(); if (!e.repeat) pickChoice(k); return; }
+    }
     if ((e.code === 'Space' || e.code === 'Enter' || e.code === 'ArrowRight') && !e.target.closest('button') && nextLine()) { e.preventDefault(); return; }
     if (e.code === 'KeyP') $('#btnPause').click();
     return;
