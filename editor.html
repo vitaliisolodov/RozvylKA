@@ -440,6 +440,7 @@ choice: hideOptions:true ховає кнопки, option.key (напр. "KeyW") 
     <h3 id="expTitle">Вивантажити ZIP</h3>
     <label class="f"><span>Ім'я файлу (напишіть прізвище й ім'я)</span><input id="expName" type="text" spellcheck="false" autocomplete="off"></label>
     <ul class="exp-list" id="expList" aria-label="Що потрапить в архів"></ul>
+    <label class="tog"><input type="checkbox" id="expOpt" checked> Оптимізувати зображення (WebP, до 1920 пікселів): архів стає в рази легшим</label>
     <p class="hint" id="expInfo"></p>
     <div class="prog-line" id="expProg" hidden><i></i></div>
     <div class="row"><button class="btn primary" id="expGo">Завантажити ZIP</button><button class="btn" id="expCancel">Скасувати</button></div>
@@ -1887,6 +1888,38 @@ async function saveBlob(filename, blob){
   return true;
 }
 
+/* --- оптимізація зображень для архіву: зменшення + WebP (JPEG, якщо браузер не вміє WebP) --- */
+const OPT_MAX = 1920, OPT_Q = 0.82, OPT_SRC = /\.(png|jpe?g|webp)$/i;
+const canvasBlob = (cv, type, q) => new Promise(res => cv.toBlob(res, type, q));
+/* повертає { blob, name } з меншою версією або null, якщо виграшу немає */
+async function optimizeImage(blob, name, taken){
+  if (!OPT_SRC.test(name) || typeof createImageBitmap !== 'function') return null;
+  let bmp; try { bmp = await createImageBitmap(blob); } catch { return null; }
+  try {
+    const k = Math.min(1, OPT_MAX / Math.max(bmp.width, bmp.height)), w = Math.max(1, Math.round(bmp.width * k)), h = Math.max(1, Math.round(bmp.height * k));
+    const cv = document.createElement('canvas'); cv.width = w; cv.height = h;
+    const cx = cv.getContext('2d'); if (!cx) return null;
+    cx.drawImage(bmp, 0, 0, w, h);
+    let out = await canvasBlob(cv, 'image/webp', OPT_Q), ext = 'webp';
+    if (!out || out.type !== 'image/webp') {            // напр. Safari: кодує лише PNG/JPEG
+      if (!/\.jpe?g$/i.test(name)) return null;       // PNG міг мати прозорість, не ризикуємо
+      out = await canvasBlob(cv, 'image/jpeg', OPT_Q); ext = name.split('.').pop();
+    }
+    if (!out || out.size >= blob.size * 0.95) return null;
+    const nn = name.replace(/\.[^./\\]+$/, '.' + ext);
+    if (nn !== name && taken.has(nn)) return null;     // не затирати інший файл
+    return { blob:out, name:nn };
+  } catch { return null; }
+  finally { if (bmp.close) bmp.close(); }
+}
+/* копія проєкту з перейменованими медіа-посиланнями */
+function renameMedia(p, map){
+  const q = JSON.parse(JSON.stringify(p)), r = v => (typeof v === 'string' && map.has(v)) ? map.get(v) : v;
+  q.cover = r(q.cover); q.music = r(q.music);
+  for (const sc of Object.values(q.scenes || {})) { for (const k of ['video','image','voice','music']) sc[k] = r(sc[k]); if (sc.end && sc.end.loop) sc.end.loop = r(sc.end.loop); }
+  return q;
+}
+
 /* --- export dialog --- */
 let expRows = [];
 const slugName = t => String(t || '').trim().replace(/[\\/:*?"<>|]+/g, '').replace(/\s+/g, '_').slice(0, 80) || 'rozvylka';
@@ -1912,18 +1945,28 @@ $('#expGo').onclick = async () => {
   let name = $('#expName').value.trim().replace(/[\\/:*?"<>|]+/g, '') || 'rozvylka'; if (!/\.zip$/i.test(name)) name += '.zip';
   const prog = $('#expProg'), bar = prog.firstElementChild; prog.hidden = false; bar.style.width = '0';
   try {
-    const entries = [{ name:'project.json', blob:new Blob([JSON.stringify(P, null, 2)], { type:'application/json' }) }], skipped = [];
-    for (const r of expRows) {
-      if (!r.have) continue; let blob = r.b;
+    const entries = [], skipped = [], ren = new Map(), opt = $('#expOpt').checked, info = $('#expInfo'), info0 = info.textContent;
+    const taken = new Set(expRows.map(r => zipName(r.n))), todo = expRows.filter(r => r.have); let was = 0, i = 0;
+    for (const r of todo) {
+      let blob = r.b;
       if (!blob) { try { const resp = await fetch(files.get(r.n)); if (!resp.ok) throw new Error('bad'); blob = await resp.blob(); } catch { skipped.push(r.n); continue; } }
-      entries.push({ name: zipName(r.n), blob });
+      let name = zipName(r.n);
+      if (opt && OPT_SRC.test(name)) {
+        info.textContent = `Оптимізую зображення ${++i}…`;
+        const o = await optimizeImage(blob, name, taken);
+        if (o) { was += blob.size - o.blob.size; if (o.name !== name) { ren.set(r.n, o.name); taken.add(o.name); } blob = o.blob; name = o.name; }
+      }
+      bar.style.width = Math.round(entries.length / todo.length * 100) + '%';
+      entries.push({ name, blob });
     }
+    info.textContent = info0; bar.style.width = '0';
+    entries.unshift({ name:'project.json', blob:new Blob([JSON.stringify(ren.size ? renameMedia(P, ren) : P, null, 2)], { type:'application/json' }) });
     if (entries.reduce((s, e) => s + e.blob.size, 0) > 4e9 || entries.length > 65000) throw new Error('Проєкт завеликий для одного ZIP (понад 4 ГБ). Зменште розмір відео.');
     const zip = await buildZip(entries, f => { bar.style.width = Math.round(f * 100) + '%'; });
     bar.style.width = '100%';
     const ok = await saveBlob(name, zip);
     $('#expModal').hidden = true;
-    note(ok ? `Вивантажено ${name} (${fmtSize(zip.size)}).${skipped.length ? ' Не вдалося додати: ' + skipped.join(', ') : ''}` : 'Не вдалося зберегти файл.');
+    note(ok ? `Вивантажено ${name} (${fmtSize(zip.size)}${was > 1024 ? ', зекономлено ' + fmtSize(was) : ''}).${skipped.length ? ' Не вдалося додати: ' + skipped.join(', ') : ''}` : 'Не вдалося зберегти файл.');
   } catch (e) { note('Не вдалося створити ZIP: ' + e.message); }
   finally { go.disabled = false; prog.hidden = true; bar.style.width = '0'; }
 };
