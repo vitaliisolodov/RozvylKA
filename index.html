@@ -81,7 +81,7 @@ code{font-family:var(--f-mono);font-size:.9em;background:var(--panel);padding:1p
 </main>
 
 <script>
-/* Робота = ZIP із редактора («Вивантажити ZIP»). Викладач кладе такі файли в папку levels/ репозиторію.
+/* Робота = ZIP із редактора («Вивантажити ZIP») АБО розпакована папка levels/<назва>/ з project.json і медіа.
    Список береться автоматично: з GitHub API (на github.io), інакше з levels/index.json або зі списку файлів папки.
    Якщо сайт на власному домені, впишіть сюди "логін/репозиторій": */
 const REPO = '';
@@ -105,24 +105,27 @@ async function listLevels(){
   if (repo) {
     try {
       const r = await fetch(`https://api.github.com/repos/${repo}/contents/levels`);
-      if (r.ok) { const a = await r.json(); return a.filter(f => f.type === 'file' && /\.zip$/i.test(f.name)).map(f => ({ name:f.name, size:f.size })); }
+      if (r.ok) { const a = await r.json(); return a.filter(f => f.type === 'dir' || (f.type === 'file' && /\.zip$/i.test(f.name))).map(f => f.type === 'dir' ? { name:f.name, dir:true } : { name:f.name, size:f.size }); }
       if (r.status === 404) return [];
     } catch {}
   }
   try {
     const r = await fetch('levels/index.json', { cache:'no-cache' });
-    if (r.ok) { const j = await r.json(); return (Array.isArray(j) ? j : j.files || []).map(x => typeof x === 'string' ? { name:x } : x).filter(x => x && /\.zip$/i.test(x.name || '')); }
+    if (r.ok) { const j = await r.json(); return (Array.isArray(j) ? j : j.files || []).map(x => typeof x === 'string' ? { name:x } : x).filter(x => x && x.name).map(x => { const name = x.name.replace(/\/+$/, ''); return { ...x, name, dir: x.dir ?? !/\.zip$/i.test(name) }; }); }
   } catch {}
   try {
     const r = await fetch('levels/');
     if (r.ok) {
-      const doc = new DOMParser().parseFromString(await r.text(), 'text/html'), out = new Set();
+      const doc = new DOMParser().parseFromString(await r.text(), 'text/html'), out = new Map(), base = new URL('levels/', location.href);
       for (const el of doc.querySelectorAll('a[href]')) {
-        const h = (el.getAttribute('href') || '').split(/[?#]/)[0]; if (!/\.zip$/i.test(h)) continue;
-        let n = h.split(/[\\/]/).pop(); try { n = decodeURIComponent(n); } catch {}
-        out.add(n);
+        let u; try { u = new URL(el.getAttribute('href') || '', base); } catch { continue; }
+        if (u.origin !== base.origin || !u.pathname.startsWith(base.pathname)) continue;
+        const parts = u.pathname.slice(base.pathname.length).split('/').filter(Boolean); if (parts.length !== 1) continue;
+        let n = parts[0]; try { n = decodeURIComponent(n); } catch {}
+        const zip = /\.zip$/i.test(n), dir = u.pathname.endsWith('/') || !/\.[a-z0-9]+$/i.test(n);
+        if (zip || dir) out.set(n, { name:n, dir:!zip });
       }
-      return [...out].map(name => ({ name }));
+      return [...out.values()];
     }
   } catch {}
   return null;
@@ -170,7 +173,20 @@ async function entryBlob(src, en, type){
   throw new Error('непідтримуване стиснення');
 }
 const IMG = { png:'image/png', jpg:'image/jpeg', jpeg:'image/jpeg', webp:'image/webp', gif:'image/gif', avif:'image/avif' };
+const encPath = p => p.split('/').map(encodeURIComponent).join('/');
+/* Робота-папка: levels/<назва>/project.json + файли поруч (картинки, відео) */
+async function readFolder(item){
+  const base = lvlUrl(item.name) + '/', r = await fetch(base + 'project.json', { cache:'no-cache' });
+  if (!r.ok) throw new Error(r.status === 404 ? 'немає project.json' : 'помилка ' + r.status);
+  const pj = await r.json();
+  if (!pj || !pj.scenes) throw new Error('у project.json немає сцен');
+  const scenes = Object.values(pj.scenes), endings = scenes.filter(s => !s.end || s.end.type === 'ending').length;
+  const names = [pj.cover, pj.scenes[pj.start] && pj.scenes[pj.start].image, ...scenes.map(s => s.image)].filter(n => typeof n === 'string' && n);
+  const c = names.find(n => IMG[n.split('.').pop().toLowerCase()]);
+  return { title: pj.title, author: pj.author, description: pj.description, scenes: scenes.length, endings, size: null, cover: c ? base + encPath(c) : null };
+}
 async function readMeta(item){
+  if (item.dir) return readFolder(item);
   let src, tried = [];
   for (const n of new Set([item.name, item.name.normalize('NFC'), item.name.normalize('NFD')])) {
     const u = lvlUrl(n); tried.push(u);
@@ -202,7 +218,7 @@ function fillCard(c, m){
   c.el.querySelector('h2').textContent = m.title || c.item.name.replace(/\.zip$/i, '');
   c.el.querySelector('.by').textContent = m.author || c.item.name.replace(/\.zip$/i, '');
   const d = c.el.querySelector('.desc'); d.textContent = m.description || ''; d.hidden = !m.description;
-  c.el.querySelector('.meta').innerHTML = `<span>${plural(m.scenes, 'сцена', 'сцени', 'сцен')}</span><span>${plural(m.endings, 'фінал', 'фінали', 'фіналів')}</span><span>${fmtSize(m.size)}</span>`;
+  c.el.querySelector('.meta').innerHTML = `<span>${plural(m.scenes, 'сцена', 'сцени', 'сцен')}</span><span>${plural(m.endings, 'фінал', 'фінали', 'фіналів')}</span>${m.size ? `<span>${fmtSize(m.size)}</span>` : ''}`;
   if (m.cover) { const im = c.el.querySelector('img'); im.onload = () => im.classList.add('on'); im.src = m.cover; }
   c.text = [m.title, m.author, m.description, c.item.name].join(' ').toLowerCase();
 }
@@ -221,7 +237,7 @@ function pump(){
 const io = 'IntersectionObserver' in window ? new IntersectionObserver(es => es.forEach(x => { if (x.isIntersecting) { io.unobserve(x.target); queue.push(x.target._c); pump(); } }), { rootMargin:'300px' }) : null;
 
 function addCard(item){
-  const el = document.createElement('a'); el.className = 'card sk'; el.href = 'editor.html#level=' + encodeURIComponent(lvlUrl(item.name));
+  const el = document.createElement('a'); el.className = 'card sk'; el.href = 'editor.html#level=' + encodeURIComponent(lvlUrl(item.name) + (item.dir ? '/' : ''));
   el.innerHTML = `<div class="pic"><img alt=""><span class="play" aria-hidden="true">▶</span></div>
     <div class="body"><h2>${esc(item.name.replace(/\.zip$/i, ''))}</h2><div class="by">Завантажую…</div><p class="desc" hidden></p><div class="meta"></div></div>`;
   const c = { el, item, text: item.name.toLowerCase() }; el._c = c; cards.push(c); grid.appendChild(el);
@@ -230,8 +246,8 @@ function addCard(item){
 
 (async () => {
   const list = await listLevels();
-  if (list === null) { state.innerHTML = '<b>Не вдалося отримати список робіт</b>Перевірте з’єднання або додайте файл <code>levels/index.json</code> зі списком ZIP-файлів.'; return; }
-  if (!list.length) { state.innerHTML = '<b>Поки що тут порожньо</b>Додайте ZIP-файли робіт у папку <code>levels</code> репозиторію.'; return; }
+  if (list === null) { state.innerHTML = '<b>Не вдалося отримати список робіт</b>Перевірте з’єднання або додайте файл <code>levels/index.json</code> зі списком робіт.'; return; }
+  if (!list.length) { state.innerHTML = '<b>Поки що тут порожньо</b>Додайте роботи (ZIP або розпаковані папки) у папку <code>levels</code> репозиторію.'; return; }
   state.hidden = true; $('#find').hidden = false;
   list.sort(natCmp).forEach(addCard);
 })();

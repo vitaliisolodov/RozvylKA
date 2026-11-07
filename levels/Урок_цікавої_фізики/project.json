@@ -1,0 +1,224 @@
+{
+  "title": "Урок цікавої фізики",
+  "start": "pochatok",
+  "variables": {},
+  "scenes": {
+    "pochatok": {
+      "title": "Початок",
+      "text": "",
+      "color": "#2d3a5c",
+      "pos": {
+        "x": 40,
+        "y": 232
+      },
+      "end": {
+        "type": "choice",
+        "prompt": "Вода горить?",
+        "options": [
+          {
+            "label": "Горить",
+            "goto": "scena_1"
+          },
+          {
+            "label": "Не горить",
+            "goto": "scena_2"
+          }
+        ]
+      },
+      "video": "Sequence 01.mp4"
+    },
+    "scena_1": {
+      "title": "Вода горить",
+      "text": "",
+      "duration": 6,
+      "color": "#3a2f4f",
+      "pos": {
+        "x": 330,
+        "y": 143
+      },
+      "end": {
+        "type": "goto",
+        "goto": "scena_3"
+      },
+      "video": "Sequence 02.1.mp4"
+    },
+    "scena_2": {
+      "title": "Вода не горить",
+      "text": "",
+      "duration": 6,
+      "color": "#22402e",
+      "pos": {
+        "x": 330,
+        "y": 348
+      },
+      "end": {
+        "type": "goto",
+        "goto": "scena_3"
+      },
+      "video": "Sequence 02.2.mp4"
+    },
+    "scena_3": {
+      "title": "Пояснення",
+      "text": "",
+      "duration": 6,
+      "color": "#5a3b2a",
+      "pos": {
+        "x": 620,
+        "y": 218
+      },
+      "end": {
+        "type": "choice",
+        "prompt": "З чього почнемо?",
+        "options": [
+          {
+            "label": "Нагрів",
+            "goto": "scena_4"
+          },
+          {
+            "label": "Бензин",
+            "goto": "scena_5"
+          },
+          {
+            "label": "Електроліз"
+          }
+        ]
+      },
+      "video": "Sequence 03.mp4"
+    },
+    "scena_4": {
+      "title": "Нагрів",
+      "text": "",
+      "duration": 6,
+      "color": "#24384a",
+      "pos": {
+        "x": 910,
+        "y": 116
+      },
+      "end": {
+        "type": "choice",
+        "prompt": "Що буде легше?",
+        "options": [
+          {
+            "label": "Електроліз",
+            "goto": "scena_9"
+          },
+          {
+            "label": "Бензин",
+            "goto": "scena_5"
+          }
+        ]
+      },
+      "video": "Sequence 04.mp4"
+    },
+    "scena_5": {
+      "title": "Бензин",
+      "text": "",
+      "duration": 6,
+      "color": "#4a2a35",
+      "pos": {
+        "x": 910,
+        "y": 348
+      },
+      "end": {
+        "type": "choice",
+        "options": [
+          {
+            "label": "Підпалити",
+            "goto": "scena_6"
+          },
+          {
+            "label": "Змішати",
+            "goto": "scena_7"
+          }
+        ]
+      },
+      "video": "Sequence 05.mp4"
+    },
+    "scena_6": {
+      "title": "Підпалити бензин",
+      "text": "",
+      "duration": 6,
+      "color": "#4a4426",
+      "pos": {
+        "x": 1200,
+        "y": 245
+      },
+      "end": {
+        "type": "goto",
+        "goto": "scena_8"
+      },
+      "video": "Sequence 6.2.mp4"
+    },
+    "scena_7": {
+      "title": "Змішати бензин",
+      "text": "",
+      "duration": 6,
+      "color": "#2a4a5c",
+      "pos": {
+        "x": 1200,
+        "y": 450
+      },
+      "end": {
+        "type": "goto",
+        "goto": "scena_8"
+      },
+      "video": "Sequence 06.1.mp4"
+    },
+    "scena_8": {
+      "title": "Ще одна ідея",
+      "text": "",
+      "duration": 6,
+      "color": "#2d3a5c",
+      "pos": {
+        "x": 1490,
+        "y": 337
+      },
+      "end": {
+        "type": "choice",
+        "prompt": "Ще одна ідея?",
+        "options": [
+          {
+            "label": "Нагрів",
+            "goto": "scena_4"
+          },
+          {
+            "label": "Електроліз",
+            "goto": "scena_9"
+          }
+        ]
+      },
+      "video": "Sequence 07.mp4"
+    },
+    "scena_9": {
+      "title": "Електроліз",
+      "text": "",
+      "duration": 6,
+      "color": "#3a2f4f",
+      "pos": {
+        "x": 1200,
+        "y": 40
+      },
+      "end": {
+        "type": "goto",
+        "goto": "scena_10"
+      },
+      "video": "Sequence 08.mp4"
+    },
+    "scena_10": {
+      "text": "",
+      "duration": 6,
+      "color": "#22402e",
+      "pos": {
+        "x": 1490,
+        "y": 127
+      },
+      "end": {
+        "type": "ending",
+        "title": ""
+      },
+      "title": "Підсумок",
+      "video": "Sequence 9.mp4"
+    }
+  },
+  "author": "Alex LAB"
+}

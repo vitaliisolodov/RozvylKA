@@ -2101,11 +2101,11 @@ $('#inReview').onchange = e => { const l = [...e.target.files]; e.target.value =
 /* --- demo project stored next to the site (demo/project.json) --- */
 const DEMO_DIR = 'demo/', DEMO_BASES = ['', 'images/', 'media/', 'img/', 'assets/', 'video/', 'audio/', 'sounds/'];
 const encPath = p => p.split('/').map(encodeURIComponent).join('/');
-async function resolveRemote(names){
+async function resolveRemote(names, dir = DEMO_DIR){
   const found = {}, missing = [];
   await Promise.all(names.map(async n => {
     for (const b of DEMO_BASES) {
-      const url = DEMO_DIR + b + encPath(n);
+      const url = dir + b + encPath(n);
       try { const r = await fetch(url, { method:'HEAD' }); if (r.ok) { found[n] = url; return; } } catch { break; }
     }
     missing.push(n);
@@ -2602,9 +2602,23 @@ requestAnimationFrame(frame);
 courseInit();
 /* --- відкриття з галереї: editor.html?level=levels/файл.zip або ?demo --- */
 async function openLevel(path){
-  if (!/^levels\/[^?#]+\.zip$/i.test(path) || path.split('/').includes('..')) { window.KIOSK = false; document.documentElement.classList.remove('kiosk'); return note('Некоректне посилання на роботу.'); }
+  const isDir = /^levels\/[^?#]+\/$/.test(path);
+  if ((!isDir && !/^levels\/[^?#]+\.zip$/i.test(path)) || path.split('/').includes('..')) { window.KIOSK = false; document.documentElement.classList.remove('kiosk'); return note('Некоректне посилання на роботу.'); }
   note('Завантажую роботу…');
   try {
+    if (isDir) { /* робота-папка: levels/<назва>/project.json + медіа поруч */
+      const pr = await fetch(path + 'project.json', { cache:'no-cache' });
+      if (!pr.ok) throw new Error(pr.status === 404 ? 'немає project.json' : 'помилка ' + pr.status);
+      const project = await pr.json();
+      if (!project || typeof project !== 'object' || !project.scenes || !Object.keys(project.scenes).length) throw new Error('у project.json немає сцен');
+      const res = await resolveRemote(mediaNames(project), path);
+      leaveReviews(); beginReview(); ZR.demo = true;
+      for (const [n, u] of Object.entries(res.found)) files.set(n, u);
+      showProject(project); renderZipBar(); enterPlay();
+      if (!document.documentElement.classList.contains('kready')) throw new Error('не вдалося запустити перегляд');
+      if (res.missing.length) note(`Не знайдено файлів: ${res.missing.length} (${res.missing.slice(0, 3).join(', ')}${res.missing.length > 3 ? '…' : ''}).`);
+      return;
+    }
     const r = await fetch(path); if (!r.ok) throw new Error(r.status === 404 ? 'файл не знайдено' : 'помилка ' + r.status);
     const blob = await r.blob(), name = decodeURIComponent(path.split('/').pop());
     await openReview([new File([blob], name, { type:'application/zip' })]);
